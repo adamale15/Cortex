@@ -8,6 +8,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Cortex - Your AI Learning Assistant",
   description: "Universal learning app with AI context that records everything and helps you learn",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
