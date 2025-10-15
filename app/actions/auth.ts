@@ -39,10 +39,24 @@ export async function signup(formData: FormData) {
     },
   }
 
-  const { error } = await supabase.auth.signUp(data)
+  const { error, data: signUpData } = await supabase.auth.signUp(data)
 
   if (error) {
+    // Handle specific error messages with user-friendly text
+    if (error.message.toLowerCase().includes('already registered') || 
+        error.message.toLowerCase().includes('already exists') ||
+        error.message.toLowerCase().includes('user already registered')) {
+      return { error: 'You already have an account with this email. Please sign in instead.' }
+    }
+    if (error.message.toLowerCase().includes('invalid')) {
+      return { error: 'This email address is already registered. Please sign in instead.' }
+    }
     return { error: error.message }
+  }
+
+  // If user already exists, Supabase returns success but no session
+  if (signUpData.user && !signUpData.session && signUpData.user.identities?.length === 0) {
+    return { error: 'You already have an account with this email. Please sign in instead.' }
   }
 
   revalidatePath('/', 'layout')
