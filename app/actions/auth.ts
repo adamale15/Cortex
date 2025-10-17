@@ -10,37 +10,16 @@ export async function login(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase()
   const password = String(formData.get('password') ?? '')
 
-  // Check if email exists in profiles (using service role to bypass RLS)
-  const { data: existingUser } = await supabase
-    .from('profiles')
-    .select('email')
-    .eq('email', email)
-    .maybeSingle()
-
-  if (!existingUser) {
-    return { 
-      error: 'This email address is not registered. Please sign up first or check your email for typos.' 
-    }
-  }
-
   const data = { email, password }
 
-  const { error, data: signInData } = await supabase.auth.signInWithPassword(data)
+  const { error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
-    // If email exists but login fails, it's likely wrong password
+    // Provide user-friendly error messages
     if (error.message.includes('Invalid login credentials')) {
-      return { error: 'Incorrect password. Please try again or reset your password.' }
+      return { error: 'Invalid email or password. Please check your credentials and try again.' }
     }
     return { error: error.message }
-  }
-
-  // Check if email is confirmed
-  if (signInData.user && !signInData.user.email_confirmed_at) {
-    await supabase.auth.signOut()
-    return { 
-      error: 'Please confirm your email address before signing in. Check your inbox for the confirmation link.' 
-    }
   }
 
   revalidatePath('/', 'layout')
@@ -52,7 +31,9 @@ export async function signup(formData: FormData) {
 
   const email = String(formData.get('email') ?? '').trim().toLowerCase()
   const password = String(formData.get('password') ?? '')
-  const fullName = String(formData.get('full_name') ?? '').trim()
+  const firstName = String(formData.get('first_name') ?? '').trim()
+  const lastName = String(formData.get('last_name') ?? '').trim()
+  const fullName = `${firstName} ${lastName}`.trim()
 
   const data = {
     email,
@@ -60,6 +41,8 @@ export async function signup(formData: FormData) {
     options: {
       data: {
         full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
       },
     },
   }
@@ -95,29 +78,43 @@ export async function signOut() {
   redirect('/login')
 }
 
+export async function signInWithGoogle() {
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
+    },
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  if (data.url) {
+    redirect(data.url)
+  }
+}
+
 export async function resetPassword(formData: FormData) {
   const supabase = await createClient()
   
   const email = String(formData.get('email') ?? '').trim().toLowerCase()
-
-  // Check if email exists in profiles
-  const { data: existingUser } = await supabase
-    .from('profiles')
-    .select('email')
-    .eq('email', email)
-    .maybeSingle()
-
-  if (!existingUser) {
-    return { 
-      error: 'This email address is not registered. Please check your email or sign up for a new account.' 
-    }
-  }
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
   })
 
   if (error) {
+    // Handle specific errors
+    if (error.message.includes('User not found') || error.message.includes('not found')) {
+      return { error: 'This email address is not registered. Please check your email or sign up for a new account.' }
+    }
     return { error: error.message }
   }
 

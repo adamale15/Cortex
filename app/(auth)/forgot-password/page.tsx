@@ -7,7 +7,6 @@ import { resetPassword } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 
 function SubmitButton() {
   const { pending } = useFormStatus()
@@ -15,20 +14,10 @@ function SubmitButton() {
   return (
     <Button 
       type="submit" 
-      className="w-full h-11 text-base font-semibold" 
+      className="w-full h-11 bg-white text-black hover:bg-gray-100 font-medium transition-colors" 
       disabled={pending}
     >
-      {pending ? (
-        <>
-          <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          Sending...
-        </>
-      ) : (
-        'Send Reset Link'
-      )}
+      {pending ? 'Sending...' : 'Send Reset Link'}
     </Button>
   )
 }
@@ -51,64 +40,73 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <Card className="w-full shadow-lg">
-      <CardHeader className="space-y-2 pb-6">
-        <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">
-          Reset Password
-        </CardTitle>
-        <CardDescription className="text-center text-base">
-          Enter your email to receive a password reset link
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pb-6">
-        {success ? (
-          <div className="space-y-6">
-            <div className="text-center space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">Check Your Email</h3>
-                <p className="text-sm text-muted-foreground mt-2">
-                  We've sent a password reset link to your email address. Click the link to reset your password.
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo/Brand */}
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-block">
+            <h1 className="text-3xl font-bold text-white mb-2">Cortex</h1>
+          </Link>
+          <p className="text-gray-400">Reset your password</p>
+        </div>
+
+        {/* Form Card */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
+          {success ? (
+            <div className="space-y-4 text-center">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                <p className="text-sm text-green-400 font-medium mb-2">✓ Email Sent</p>
+                <p className="text-sm text-gray-300">
+                  Check your email for a password reset link
                 </p>
               </div>
+              <Link href="/login">
+                <Button variant="outline" className="w-full border-zinc-800 text-white hover:bg-zinc-800">
+                  Back to Login
+                </Button>
+              </Link>
             </div>
-            <div className="text-xs text-center text-muted-foreground pt-4 border-t">
-              Didn't receive it? Check your spam folder or try again in a few minutes.
-            </div>
-          </div>
-        ) : (
-          <form action={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                Email Address
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-                className="h-11"
-              />
-            </div>
-            {error && (
-              <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 p-3 rounded-lg">
-                <span className="font-medium">Error:</span> {error}
+          ) : (
+            <>
+              <div className="mb-6">
+                <p className="text-sm text-gray-400">
+                  Enter your email address and we'll send you a link to reset your password.
+                </p>
               </div>
-            )}
-            <SubmitButton />
-          </form>
-        )}
-      </CardContent>
-      <CardFooter className="flex flex-col space-y-4 pt-6 border-t">
-        <div className="text-sm text-center text-muted-foreground">
-          Remember your password?{' '}
-          <Link href="/login" className="text-primary hover:underline font-semibold transition-colors">
-            Back to sign in
-          </Link>
+
+              <form action={handleSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-gray-300 text-sm">
+                    Email Address
+                  </Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    className="bg-black border-zinc-800 text-white h-11 focus:border-white transition-colors"
+                  />
+                </div>
+
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                    <p className="text-sm text-red-400">{error}</p>
+                  </div>
+                )}
+
+                <SubmitButton />
+              </form>
+
+              <div className="mt-6 text-center">
+                <Link href="/login" className="text-sm text-gray-400 hover:text-white transition-colors">
+                  ← Back to login
+                </Link>
+              </div>
+            </>
+          )}
         </div>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   )
 }
-
