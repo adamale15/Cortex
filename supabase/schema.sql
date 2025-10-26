@@ -20,24 +20,46 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 -- ========================================
--- 2. NOTES TABLE
+-- 2. FOLDERS TABLE
+-- ========================================
+CREATE TABLE IF NOT EXISTS public.folders (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  color TEXT DEFAULT '#6366f1',
+  emoji TEXT,
+  position INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create index for faster queries
+CREATE INDEX IF NOT EXISTS folders_user_id_idx ON public.folders(user_id);
+CREATE INDEX IF NOT EXISTS folders_position_idx ON public.folders(user_id, position);
+
+-- ========================================
+-- 3. NOTES TABLE
 -- ========================================
 CREATE TABLE IF NOT EXISTS public.notes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  folder_id UUID REFERENCES public.folders(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   content TEXT,
   tags TEXT[],
+  position INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Create index for faster queries
 CREATE INDEX IF NOT EXISTS notes_user_id_idx ON public.notes(user_id);
+CREATE INDEX IF NOT EXISTS notes_folder_id_idx ON public.notes(folder_id);
 CREATE INDEX IF NOT EXISTS notes_created_at_idx ON public.notes(created_at DESC);
+CREATE INDEX IF NOT EXISTS notes_position_idx ON public.notes(user_id, position);
 
 -- ========================================
--- 3. FILES TABLE
+-- 4. FILES TABLE
 -- ========================================
 CREATE TABLE IF NOT EXISTS public.files (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -53,7 +75,7 @@ CREATE TABLE IF NOT EXISTS public.files (
 CREATE INDEX IF NOT EXISTS files_user_id_idx ON public.files(user_id);
 
 -- ========================================
--- 4. REMINDERS TABLE
+-- 5. REMINDERS TABLE
 -- ========================================
 CREATE TABLE IF NOT EXISTS public.reminders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -70,7 +92,7 @@ CREATE INDEX IF NOT EXISTS reminders_user_id_idx ON public.reminders(user_id);
 CREATE INDEX IF NOT EXISTS reminders_due_date_idx ON public.reminders(due_date);
 
 -- ========================================
--- 5. CHAT HISTORY TABLE
+-- 6. CHAT HISTORY TABLE
 -- ========================================
 CREATE TABLE IF NOT EXISTS public.chat_messages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -85,16 +107,17 @@ CREATE INDEX IF NOT EXISTS chat_messages_user_id_idx ON public.chat_messages(use
 CREATE INDEX IF NOT EXISTS chat_messages_created_at_idx ON public.chat_messages(created_at DESC);
 
 -- ========================================
--- 6. ENABLE ROW LEVEL SECURITY (RLS)
+-- 7. ENABLE ROW LEVEL SECURITY (RLS)
 -- ========================================
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.folders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reminders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 
 -- ========================================
--- 7. RLS POLICIES - PROFILES
+-- 8. RLS POLICIES - PROFILES
 -- ========================================
 CREATE POLICY "Users can view own profile"
   ON public.profiles FOR SELECT
@@ -105,7 +128,26 @@ CREATE POLICY "Users can update own profile"
   USING (auth.uid() = id);
 
 -- ========================================
--- 8. RLS POLICIES - NOTES
+-- 9. RLS POLICIES - FOLDERS
+-- ========================================
+CREATE POLICY "Users can view own folders"
+  ON public.folders FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create own folders"
+  ON public.folders FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own folders"
+  ON public.folders FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own folders"
+  ON public.folders FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ========================================
+-- 10. RLS POLICIES - NOTES
 -- ========================================
 CREATE POLICY "Users can view own notes"
   ON public.notes FOR SELECT
@@ -124,7 +166,7 @@ CREATE POLICY "Users can delete own notes"
   USING (auth.uid() = user_id);
 
 -- ========================================
--- 9. RLS POLICIES - FILES
+-- 11. RLS POLICIES - FILES
 -- ========================================
 CREATE POLICY "Users can view own files"
   ON public.files FOR SELECT
@@ -139,7 +181,7 @@ CREATE POLICY "Users can delete own files"
   USING (auth.uid() = user_id);
 
 -- ========================================
--- 10. RLS POLICIES - REMINDERS
+-- 12. RLS POLICIES - REMINDERS
 -- ========================================
 CREATE POLICY "Users can view own reminders"
   ON public.reminders FOR SELECT
@@ -158,7 +200,7 @@ CREATE POLICY "Users can delete own reminders"
   USING (auth.uid() = user_id);
 
 -- ========================================
--- 11. RLS POLICIES - CHAT MESSAGES
+-- 13. RLS POLICIES - CHAT MESSAGES
 -- ========================================
 CREATE POLICY "Users can view own chat messages"
   ON public.chat_messages FOR SELECT
@@ -173,7 +215,7 @@ CREATE POLICY "Users can delete own chat messages"
   USING (auth.uid() = user_id);
 
 -- ========================================
--- 12. FUNCTIONS - Auto-update timestamps
+-- 14. FUNCTIONS - Auto-update timestamps
 -- ========================================
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
@@ -188,6 +230,10 @@ CREATE TRIGGER profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+CREATE TRIGGER folders_updated_at
+  BEFORE UPDATE ON public.folders
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
 CREATE TRIGGER notes_updated_at
   BEFORE UPDATE ON public.notes
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
@@ -197,7 +243,7 @@ CREATE TRIGGER reminders_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 -- ========================================
--- 13. FUNCTION - Create profile on signup
+-- 15. FUNCTION - Create profile on signup
 -- ========================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$

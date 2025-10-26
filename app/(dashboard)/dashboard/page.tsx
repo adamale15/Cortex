@@ -64,7 +64,7 @@ export default async function DashboardPage() {
       
       {/* Header */}
       <header className="border-b border-zinc-800 bg-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-white">Dashboard</h1>
@@ -75,7 +75,6 @@ export default async function DashboardPage() {
             <form action={signOut}>
               <Button
                 type="submit"
-                variant="outline"
                 className="border-zinc-800 text-gray-300 hover:bg-zinc-800 hover:text-white"
               >
                 Sign Out
@@ -86,7 +85,7 @@ export default async function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="container mx-auto px-4 py-8">
         {/* Feature Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {features.map((feature) => {
@@ -185,7 +184,7 @@ export default async function DashboardPage() {
                   </Button>
                 </Link>
                 <Link href="/files">
-                  <Button variant="outline" className="border-zinc-800 text-gray-300 hover:bg-zinc-800 hover:text-white">
+                  <Button className="border-zinc-800 text-gray-300 hover:bg-zinc-800 hover:text-white">
                     <Upload className="h-4 w-4 mr-2" />
                     Upload File
                   </Button>

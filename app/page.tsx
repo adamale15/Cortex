@@ -34,7 +34,7 @@ export default async function Home() {
             </Button>
           </Link>
           <Link href="/login">
-            <Button size="lg" variant="outline" className="text-lg px-8 border-zinc-800 text-gray-300 hover:bg-zinc-800 hover:text-white">
+            <Button size="lg" className="text-lg px-8 border-zinc-800 text-gray-300 hover:bg-zinc-800 hover:text-white">
               Sign In
             </Button>
           </Link>

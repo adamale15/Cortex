@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
+import TextAlign from '@tiptap/extension-text-align'
 import { 
   Bold, 
   Italic, 
@@ -17,7 +18,11 @@ import {
   Quote,
   Undo,
   Redo,
-  Link as LinkIcon
+  Link as LinkIcon,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -44,6 +49,10 @@ export function Editor({ content, onChange, placeholder = 'Start writing...' }: 
         HTMLAttributes: {
           class: 'text-blue-400 underline cursor-pointer',
         },
+      }),
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+        alignments: ['left', 'center', 'right', 'justify'],
       }),
     ],
     content,
@@ -174,6 +183,45 @@ export function Editor({ content, onChange, placeholder = 'Start writing...' }: 
           className={editor.isActive('link') ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
         >
           <LinkIcon className="h-4 w-4" />
+        </Button>
+        
+        <div className="w-px h-6 bg-zinc-800 mx-1" />
+
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => editor.chain().focus().setTextAlign('left').run()}
+          className={editor.isActive({ textAlign: 'left' }) ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
+        >
+          <AlignLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => editor.chain().focus().setTextAlign('center').run()}
+          className={editor.isActive({ textAlign: 'center' }) ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
+        >
+          <AlignCenter className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => editor.chain().focus().setTextAlign('right').run()}
+          className={editor.isActive({ textAlign: 'right' }) ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
+        >
+          <AlignRight className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+          className={editor.isActive({ textAlign: 'justify' }) ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
+        >
+          <AlignJustify className="h-4 w-4" />
         </Button>
         
         <div className="w-px h-6 bg-zinc-800 mx-1" />
