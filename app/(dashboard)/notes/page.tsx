@@ -2,55 +2,45 @@
 
 import { useState, useEffect } from 'react'
 import { Note, Folder } from '@/types'
-import { getNotes, createNote, updateNote, deleteNote, reorderNotes } from '@/app/actions/notes'
+import { getNotes, createNote, updateNote, deleteNote } from '@/app/actions/notes'
 import { getFolders, createFolder, updateFolder, deleteFolder } from '@/app/actions/folders'
-import { Editor } from '@/components/notes/editor'
-import { DraggableNoteCard } from '@/components/notes/draggable-note-card'
-import { Navbar } from '@/components/navbar'
+import { NotionSidebar } from '@/components/notes/notion-sidebar'
+import { NoteView } from '@/components/notes/note-view'
+import { EmptyState } from '@/components/notes/empty-state'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Search, X, FolderPlus, Folder as FolderIcon, Edit2, Trash2, ArrowLeft, FileText } from 'lucide-react'
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  rectSortingStrategy,
-} from '@dnd-kit/sortable'
+import { X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 export default function NotesPage() {
+  const router = useRouter()
   const [notes, setNotes] = useState<Note[]>([])
   const [folders, setFolders] = useState<Folder[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedFolder, setSelectedFolder] = useState<Folder | 'all' | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
+  const [searchHighlight, setSearchHighlight] = useState<string | null>(null)
+  
+  // Modals
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false)
-  const [editingNote, setEditingNote] = useState<Note | null>(null)
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null)
-  const [formData, setFormData] = useState({
-    title: '',
-    content: '',
-    tags: '',
-    folder_id: '',
-  })
   const [folderFormData, setFolderFormData] = useState({
     name: '',
     color: '#6366f1',
     emoji: '',
   })
+  
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false)
+  const [newNoteFolderId, setNewNoteFolderId] = useState<string | undefined>(undefined)
+  const [noteFormData, setNoteFormData] = useState({
+    title: '',
+  })
+  
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Confirmations
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; noteId: string | null }>({
     isOpen: false,
     noteId: null,
@@ -59,17 +49,6 @@ export default function NotesPage() {
     isOpen: false,
     folderId: null,
   })
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  )
 
   useEffect(() => {
     loadData()
@@ -95,28 +74,20 @@ export default function NotesPage() {
     }
   }
 
-  const handleNewNote = () => {
-    setEditingNote(null)
-    const folderId = selectedFolder && selectedFolder !== 'all' ? selectedFolder.id : ''
-    setFormData({ title: '', content: '', tags: '', folder_id: folderId })
-    setIsModalOpen(true)
+  const handleNoteSelect = (noteId: string, searchQuery?: string) => {
+    setSelectedNoteId(noteId)
+    setSearchHighlight(searchQuery || null)
+  }
+
+  const handleNewNote = (folderId?: string) => {
+    setNewNoteFolderId(folderId)
+    setNoteFormData({ title: '' })
+    setIsNoteModalOpen(true)
     setError(null)
   }
 
-  const handleEdit = (note: Note) => {
-    setEditingNote(note)
-    setFormData({
-      title: note.title,
-      content: note.content,
-      tags: note.tags.join(', '),
-      folder_id: note.folder_id || '',
-    })
-    setIsModalOpen(true)
-    setError(null)
-  }
-
-  const handleSave = async () => {
-    if (!formData.title.trim()) {
+  const handleCreateNote = async () => {
+    if (!noteFormData.title.trim()) {
       setError('Title is required')
       return
     }
@@ -125,61 +96,62 @@ export default function NotesPage() {
     setError(null)
 
     const data = new FormData()
-    data.append('title', formData.title)
-    data.append('content', formData.content)
-    data.append('tags', formData.tags)
-    data.append('folder_id', formData.folder_id)
+    data.append('title', noteFormData.title)
+    data.append('content', '')
+    data.append('tags', '')
+    if (newNoteFolderId) {
+      data.append('folder_id', newNoteFolderId)
+    }
 
-    const result = editingNote
-      ? await updateNote(editingNote.id, data)
-      : await createNote(data)
+    const result = await createNote(data)
 
     if (result.error) {
       setError(result.error)
     } else {
-      setIsModalOpen(false)
+      setIsNoteModalOpen(false)
       await loadNotes()
+      if (result.note) {
+        setSelectedNoteId(result.note.id)
+      }
     }
 
     setIsSaving(false)
   }
 
-  const handleDelete = async (id: string) => {
-    setDeleteConfirm({ isOpen: true, noteId: id })
+  const handleUpdateNote = async (noteId: string, updates: { title?: string; content?: string; folder_id?: string | null; tags?: string }) => {
+    const note = notes.find(n => n.id === noteId)
+    if (!note) return
+
+    const data = new FormData()
+    data.append('title', updates.title ?? note.title)
+    data.append('content', updates.content ?? note.content)
+    data.append('tags', updates.tags ?? note.tags.join(', '))
+    data.append('folder_id', updates.folder_id ?? note.folder_id ?? '')
+
+    const result = await updateNote(noteId, data)
+    
+    if (!result.error) {
+      await loadNotes()
+    }
   }
 
-  const confirmDelete = async () => {
+  const handleDeleteNote = (noteId: string) => {
+    setDeleteConfirm({ isOpen: true, noteId })
+  }
+
+  const confirmDeleteNote = async () => {
     if (!deleteConfirm.noteId) return
 
     await deleteNote(deleteConfirm.noteId)
+    
+    if (selectedNoteId === deleteConfirm.noteId) {
+      setSelectedNoteId(null)
+    }
+    
     setDeleteConfirm({ isOpen: false, noteId: null })
     await loadNotes()
   }
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event
-
-    if (!over || active.id === over.id) {
-      return
-    }
-
-    const oldIndex = filteredNotes.findIndex((note) => note.id === active.id)
-    const newIndex = filteredNotes.findIndex((note) => note.id === over.id)
-
-    const newNotes = arrayMove(filteredNotes, oldIndex, newIndex)
-    
-    // Update local state
-    setNotes(prevNotes => {
-      const otherNotes = prevNotes.filter(n => !filteredNotes.includes(n))
-      return [...otherNotes, ...newNotes]
-    })
-
-    // Update positions in database
-    const noteIds = newNotes.map((note) => note.id)
-    await reorderNotes(noteIds)
-  }
-
-  // Folder management
   const handleNewFolder = () => {
     setEditingFolder(null)
     setFolderFormData({ name: '', color: '#6366f1', emoji: '' })
@@ -187,8 +159,7 @@ export default function NotesPage() {
     setError(null)
   }
 
-  const handleEditFolder = (folder: Folder, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleEditFolder = (folder: Folder) => {
     setEditingFolder(folder)
     setFolderFormData({ name: folder.name, color: folder.color, emoji: folder.emoji || '' })
     setIsFolderModalOpen(true)
@@ -223,8 +194,7 @@ export default function NotesPage() {
     setIsSaving(false)
   }
 
-  const handleDeleteFolder = async (folderId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleDeleteFolder = (folderId: string) => {
     setDeleteFolderConfirm({ isOpen: true, folderId })
   }
 
@@ -234,249 +204,146 @@ export default function NotesPage() {
     await deleteFolder(deleteFolderConfirm.folderId)
     setDeleteFolderConfirm({ isOpen: false, folderId: null })
     await Promise.all([loadFolders(), loadNotes()])
-    
-    // If currently viewing the deleted folder, go back to folder view
-    if (selectedFolder && selectedFolder !== 'all' && selectedFolder.id === deleteFolderConfirm.folderId) {
-      setSelectedFolder(null)
-    }
   }
 
-  const handleFolderClick = (folder: Folder | 'all') => {
-    setSelectedFolder(folder)
-    setSearchQuery('')
+  const handleHomeClick = () => {
+    router.push('/dashboard')
   }
 
-  const handleBackToFolders = () => {
-    setSelectedFolder(null)
-    setSearchQuery('')
-  }
-
-  // Filter notes based on search query and selected folder
-  const filteredNotes = notes.filter(note => {
-    // Search filter
-    const query = searchQuery.toLowerCase()
-    const matchesSearch = !searchQuery || (
-      note.title.toLowerCase().includes(query) ||
-      note.content.toLowerCase().includes(query) ||
-      note.tags?.some(tag => tag.toLowerCase().includes(query))
-    )
-
-    // Folder filter
-    if (selectedFolder === 'all') {
-      return matchesSearch && !note.folder_id
-    } else if (selectedFolder && typeof selectedFolder !== 'string') {
-      return matchesSearch && note.folder_id === selectedFolder.id
-    }
-
-    return matchesSearch
-  })
-
-  // Count notes per folder
-  const getNotesCount = (folderId: string | null) => {
-    return notes.filter(note => note.folder_id === folderId).length
+  const handleEditNoteFromSidebar = (note: Note) => {
+    setSelectedNoteId(note.id)
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="flex h-screen bg-black">
+        <div className="w-64 bg-zinc-950 border-r border-zinc-800" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-white">Loading...</div>
+        </div>
       </div>
     )
   }
 
-  // Get search results across all notes
-  const searchResults = searchQuery ? notes.filter(note => {
-    const query = searchQuery.toLowerCase()
-    return (
-      note.title.toLowerCase().includes(query) ||
-      note.content.toLowerCase().includes(query) ||
-      note.tags?.some(tag => tag.toLowerCase().includes(query))
-    )
-  }) : []
+  const selectedNote = notes.find(n => n.id === selectedNoteId)
 
-  // Folder view (no folder selected)
-  if (!selectedFolder) {
-    return (
-      <div className="min-h-screen bg-black">
-        <Navbar />
-        
-        <main className="container mx-auto px-4 py-6">
-          {/* Header */}
-          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Notes</h1>
-              <p className="text-zinc-400">Organize your thoughts</p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              {/* Search Bar */}
-              <div className="relative flex-1 md:flex-initial">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-                <Input
-                  type="text"
-                  placeholder="Search all notes..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-zinc-900 border-zinc-800 text-white placeholder:text-zinc-500 w-full md:w-[300px]"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+  return (
+    <div className="flex h-screen bg-black overflow-hidden">
+      {/* Sidebar */}
+      <NotionSidebar
+        folders={folders}
+        notes={notes}
+        selectedNoteId={selectedNoteId}
+        onNoteSelect={handleNoteSelect}
+        onNewNote={handleNewNote}
+        onNewFolder={handleNewFolder}
+        onEditFolder={handleEditFolder}
+        onDeleteFolder={handleDeleteFolder}
+        onEditNote={handleEditNoteFromSidebar}
+        onDeleteNote={handleDeleteNote}
+        onHomeClick={handleHomeClick}
+      />
 
-              <Button
-                onClick={handleNewFolder}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white"
+      {/* Main Content */}
+      {selectedNote ? (
+        <NoteView
+          key={`${selectedNote.id}-${searchHighlight || ''}`}
+          note={selectedNote}
+          folders={folders}
+          onUpdate={handleUpdateNote}
+          onDelete={handleDeleteNote}
+          searchHighlight={searchHighlight}
+        />
+      ) : (
+        <EmptyState
+          hasNotes={notes.length > 0}
+          onNewNote={() => handleNewNote()}
+          onNewFolder={handleNewFolder}
+        />
+      )}
+
+      {/* New Note Modal */}
+      {isNoteModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 rounded-2xl max-w-md w-full border border-zinc-800">
+            <div className="border-b border-zinc-800 p-6 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white">Create New Note</h2>
+              <button
+                onClick={() => setIsNoteModalOpen(false)}
+                className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-white"
               >
-                <FolderPlus className="w-5 h-5 mr-2" />
-                New Folder
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {error && (
+                <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="note-title" className="text-white">Title</Label>
+                <Input
+                  id="note-title"
+                  value={noteFormData.title}
+                  onChange={(e) => setNoteFormData({ title: e.target.value })}
+                  placeholder="Enter note title..."
+                  className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleCreateNote()
+                    }
+                  }}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-zinc-800 p-6 flex gap-3 justify-end">
+              <Button
+                onClick={() => setIsNoteModalOpen(false)}
+                variant="outline"
+                disabled={isSaving}
+                className="bg-transparent border-zinc-700 text-white hover:bg-zinc-800"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateNote}
+                disabled={isSaving}
+                className="bg-white hover:bg-zinc-200 text-black"
+              >
+                {isSaving ? 'Creating...' : 'Create Note'}
               </Button>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Search Results */}
-          {searchQuery ? (
-            <div>
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-white mb-2">
-                  Search Results
-                </h2>
-                <p className="text-zinc-400">
-                  Found {searchResults.length} {searchResults.length === 1 ? 'note' : 'notes'} matching "{searchQuery}"
-                </p>
-              </div>
-
-              {searchResults.length === 0 ? (
-                <div className="text-center py-12">
-                  <Search className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
-                  <p className="text-zinc-400 text-lg">No notes found matching your search.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {searchResults.map((note) => (
-                    <div key={note.id} className="min-h-[180px]">
-                      <DraggableNoteCard
-                        note={note}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+      {/* Folder Modal */}
+      {isFolderModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 rounded-2xl max-w-md w-full border border-zinc-800">
+            <div className="border-b border-zinc-800 p-6 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white">
+                {editingFolder ? 'Edit Folder' : 'Create New Folder'}
+              </h2>
+              <button
+                onClick={() => setIsFolderModalOpen(false)}
+                className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
-          ) : (
-            /* Folders Grid */
-            <>
-              {folders.length === 0 && getNotesCount(null) === 0 ? (
-                <div className="text-center py-12">
-                  <FolderIcon className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
-                  <p className="text-zinc-400 text-lg mb-4">No folders yet. Create your first folder!</p>
-                  <Button
-                    onClick={handleNewFolder}
-                    className="bg-white hover:bg-zinc-200 text-black"
-                  >
-                    <FolderPlus className="w-5 h-5 mr-2" />
-                    Create Folder
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {/* User-created folders */}
-                  {folders.map(folder => (
-                    <div
-                      key={folder.id}
-                      onClick={() => handleFolderClick(folder)}
-                      className="group relative bg-zinc-900 border border-zinc-800 rounded-xl p-6 cursor-pointer hover:border-zinc-700 hover:bg-zinc-800/50 transition-all"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        {folder.emoji ? (
-                          <div className="text-5xl">
-                            {folder.emoji}
-                          </div>
-                        ) : (
-                          <FolderIcon
-                            className="w-12 h-12"
-                            style={{ color: folder.color }}
-                          />
-                        )}
-                        
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                          <button
-                            onClick={(e) => handleEditFolder(folder, e)}
-                            className="p-2 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => handleDeleteFolder(folder.id, e)}
-                            className="p-2 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-red-400 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
 
-                      <h3 className="text-xl font-semibold text-white mb-2">
-                        {folder.name}
-                      </h3>
-                      <p className="text-zinc-400 text-sm">
-                        {getNotesCount(folder.id)} {getNotesCount(folder.id) === 1 ? 'note' : 'notes'}
-                      </p>
-                    </div>
-                  ))}
-
-                  {/* All Notes folder */}
-                  {getNotesCount(null) > 0 && (
-                    <div
-                      onClick={() => handleFolderClick('all')}
-                      className="group relative bg-zinc-900 border border-zinc-800 rounded-xl p-6 cursor-pointer hover:border-zinc-700 hover:bg-zinc-800/50 transition-all"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <FileText className="w-12 h-12 text-zinc-500" />
-                      </div>
-
-                      <h3 className="text-xl font-semibold text-white mb-2">
-                        All Notes
-                      </h3>
-                      <p className="text-zinc-400 text-sm">
-                        {getNotesCount(null)} {getNotesCount(null) === 1 ? 'note' : 'notes'}
-                      </p>
-                    </div>
-                  )}
+            <div className="p-6 space-y-6">
+              {error && (
+                <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
+                  {error}
                 </div>
               )}
-            </>
-          )}
-        </main>
-
-        {/* Folder Modal */}
-        {isFolderModalOpen && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-zinc-900 rounded-2xl max-w-md w-full border border-zinc-800">
-              <div className="border-b border-zinc-800 p-6 flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">
-                  {editingFolder ? 'Edit Folder' : 'Create New Folder'}
-                </h2>
-                <button
-                  onClick={() => setIsFolderModalOpen(false)}
-                  className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-white"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-6">
-                {error && (
-                  <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
-                    {error}
-                  </div>
-                )}
 
               <div className="space-y-2">
                 <Label htmlFor="folder-name" className="text-white">Folder Name</Label>
@@ -486,6 +353,7 @@ export default function NotesPage() {
                   onChange={(e) => setFolderFormData({ ...folderFormData, name: e.target.value })}
                   placeholder="Enter folder name..."
                   className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                  autoFocus
                 />
               </div>
 
@@ -536,223 +404,8 @@ export default function NotesPage() {
             </div>
 
             <div className="border-t border-zinc-800 p-6 flex gap-3 justify-end">
-                <Button
-                  onClick={() => setIsFolderModalOpen(false)}
-                  variant="outline"
-                  disabled={isSaving}
-                  className="bg-transparent border-zinc-700 text-white hover:bg-zinc-800"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSaveFolder}
-                  disabled={isSaving}
-                  className="bg-white hover:bg-zinc-200 text-black"
-                >
-                  {isSaving ? 'Saving...' : editingFolder ? 'Update Folder' : 'Create Folder'}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Delete Folder Confirmation */}
-        <ConfirmDialog
-          isOpen={deleteFolderConfirm.isOpen}
-          title="Delete Folder"
-          message="Are you sure you want to delete this folder? Notes in this folder will be moved to 'All Notes'."
-          onConfirm={confirmDeleteFolder}
-          onCancel={() => setDeleteFolderConfirm({ isOpen: false, folderId: null })}
-          confirmText="Delete"
-          cancelText="Cancel"
-        />
-      </div>
-    )
-  }
-
-  // Notes view (folder selected)
-  return (
-    <div className="min-h-screen bg-black">
-      <Navbar />
-      
-      <main className="container mx-auto px-4 py-6">
-        {/* Header with back button */}
-        <div className="mb-6">
-          <button
-            onClick={handleBackToFolders}
-            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors mb-4"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Folders
-          </button>
-
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              {selectedFolder === 'all' ? (
-                <>
-                  <FileText className="w-10 h-10 text-zinc-500" />
-                  <div>
-                    <h1 className="text-3xl font-bold text-white">All Notes</h1>
-                    <p className="text-zinc-400">Uncategorized notes</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {selectedFolder.emoji ? (
-                    <div className="text-5xl">
-                      {selectedFolder.emoji}
-                    </div>
-                  ) : (
-                    <FolderIcon
-                      className="w-10 h-10"
-                      style={{ color: selectedFolder.color }}
-                    />
-                  )}
-                  <div>
-                    <h1 className="text-3xl font-bold text-white">{selectedFolder.name}</h1>
-                    <p className="text-zinc-400">{filteredNotes.length} {filteredNotes.length === 1 ? 'note' : 'notes'}</p>
-                  </div>
-                </>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 md:flex-initial">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-                <Input
-                  type="text"
-                  placeholder="Search notes..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-zinc-900 border-zinc-800 text-white placeholder:text-zinc-500 w-full md:w-[300px]"
-                />
-              </div>
-
               <Button
-                onClick={handleNewNote}
-                className="bg-white hover:bg-zinc-200 text-black"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                New Note
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Notes Grid */}
-        {filteredNotes.length === 0 ? (
-          <div className="text-center py-12">
-            <FileText className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
-            <p className="text-zinc-400 text-lg mb-4">
-              {searchQuery ? 'No notes found matching your search.' : 'No notes in this folder yet.'}
-            </p>
-            {!searchQuery && (
-              <Button
-                onClick={handleNewNote}
-                className="bg-white hover:bg-zinc-200 text-black"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Create Note
-              </Button>
-            )}
-          </div>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={filteredNotes.map(n => n.id)} strategy={rectSortingStrategy}>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredNotes.map((note) => (
-                  <div key={note.id} className="min-h-[180px]">
-                    <DraggableNoteCard
-                      note={note}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                    />
-                  </div>
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        )}
-      </main>
-
-      {/* Note Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-zinc-800">
-            <div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 p-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">
-                {editingNote ? 'Edit Note' : 'Create New Note'}
-              </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-white"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {error && (
-                <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
-                  {error}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="title" className="text-white">Title</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Enter note title..."
-                  className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="folder" className="text-white">Folder (Optional)</Label>
-                <select
-                  id="folder"
-                  value={formData.folder_id}
-                  onChange={(e) => setFormData({ ...formData, folder_id: e.target.value })}
-                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2"
-                >
-                  <option value="">No Folder</option>
-                  {folders.map(folder => (
-                    <option key={folder.id} value={folder.id}>
-                      {folder.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="content" className="text-white">Content</Label>
-                <Editor
-                  content={formData.content}
-                  onChange={(content) => setFormData({ ...formData, content })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tags" className="text-white">Tags</Label>
-                <Input
-                  id="tags"
-                  value={formData.tags}
-                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                  placeholder="work, personal, ideas (comma separated)"
-                  className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
-                />
-              </div>
-            </div>
-
-            <div className="sticky bottom-0 bg-zinc-900 border-t border-zinc-800 p-6 flex gap-3 justify-end">
-              <Button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => setIsFolderModalOpen(false)}
                 variant="outline"
                 disabled={isSaving}
                 className="bg-transparent border-zinc-700 text-white hover:bg-zinc-800"
@@ -760,11 +413,11 @@ export default function NotesPage() {
                 Cancel
               </Button>
               <Button
-                onClick={handleSave}
+                onClick={handleSaveFolder}
                 disabled={isSaving}
                 className="bg-white hover:bg-zinc-200 text-black"
               >
-                {isSaving ? 'Saving...' : editingNote ? 'Update Note' : 'Create Note'}
+                {isSaving ? 'Saving...' : editingFolder ? 'Update Folder' : 'Create Folder'}
               </Button>
             </div>
           </div>
@@ -776,8 +429,19 @@ export default function NotesPage() {
         isOpen={deleteConfirm.isOpen}
         title="Delete Note"
         message="Are you sure you want to delete this note? This action cannot be undone."
-        onConfirm={confirmDelete}
+        onConfirm={confirmDeleteNote}
         onCancel={() => setDeleteConfirm({ isOpen: false, noteId: null })}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      {/* Delete Folder Confirmation */}
+      <ConfirmDialog
+        isOpen={deleteFolderConfirm.isOpen}
+        title="Delete Folder"
+        message="Are you sure you want to delete this folder? Notes in this folder will be moved to 'Uncategorized'."
+        onConfirm={confirmDeleteFolder}
+        onCancel={() => setDeleteFolderConfirm({ isOpen: false, folderId: null })}
         confirmText="Delete"
         cancelText="Cancel"
       />

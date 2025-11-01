@@ -6,10 +6,10 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Cortex - Your AI Learning Assistant",
+  title: "Cortex",
   description: "Universal learning app with AI context that records everything and helps you learn",
   icons: {
-    icon: "/icon.svg",
+    icon: "/logo.png",
   },
 };
 

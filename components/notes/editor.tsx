@@ -1,30 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import TextAlign from '@tiptap/extension-text-align'
-import { 
-  Bold, 
-  Italic, 
-  Underline as UnderlineIcon, 
-  Strikethrough,
-  Code,
-  List,
-  ListOrdered,
-  Quote,
-  Undo,
-  Redo,
-  Link as LinkIcon,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  AlignJustify
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { CommandMenu } from './command-menu'
 
 interface EditorProps {
   content: string
@@ -32,7 +15,12 @@ interface EditorProps {
   placeholder?: string
 }
 
-export function Editor({ content, onChange, placeholder = 'Start writing...' }: EditorProps) {
+export function Editor({ content, onChange, placeholder = 'Type @ for commands...' }: EditorProps) {
+  const [showCommandMenu, setShowCommandMenu] = useState(false)
+  const [commandQuery, setCommandQuery] = useState('')
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
+  const commandStartPos = useRef<number | null>(null)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -57,11 +45,46 @@ export function Editor({ content, onChange, placeholder = 'Start writing...' }: 
     ],
     content,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML())
+      // Don't auto-save on every keystroke - only check for @ commands
+      // Check for @ character using getText() which is more reliable
+      const { from } = editor.state.selection
+      const { $from } = editor.state.selection
+      
+      // Get text from the start of the current text block to cursor
+      const textBefore = $from.parent.textContent.slice(0, $from.parentOffset)
+      const lastAtIndex = textBefore.lastIndexOf('@')
+      
+      if (lastAtIndex !== -1) {
+        const queryText = textBefore.slice(lastAtIndex + 1)
+        
+        // Only show menu if @ is at start of line or after a space
+        const charBeforeAt = textBefore[lastAtIndex - 1]
+        const isValidTrigger = !charBeforeAt || charBeforeAt === ' ' || charBeforeAt === '\n'
+        
+        if (isValidTrigger && queryText.length <= 20 && !queryText.includes(' ') && !queryText.includes('\n')) {
+          // Calculate absolute position of @ in the document
+          const absoluteFrom = from - queryText.length - 1
+          
+          setCommandQuery(queryText)
+          setShowCommandMenu(true)
+          commandStartPos.current = absoluteFrom
+          
+          // Calculate menu position
+          const coords = editor.view.coordsAtPos(from)
+          setMenuPosition({
+            top: coords.bottom + 8,
+            left: coords.left,
+          })
+        } else {
+          setShowCommandMenu(false)
+        }
+      } else {
+        setShowCommandMenu(false)
+      }
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-invert max-w-none focus:outline-none min-h-[400px] px-4 py-3',
+        class: 'prose prose-invert prose-lg max-w-none focus:outline-none min-h-[400px]',
       },
     },
   })
@@ -73,184 +96,228 @@ export function Editor({ content, onChange, placeholder = 'Start writing...' }: 
     }
   }, [content, editor])
 
+  // Add Ctrl+S save handler
+  useEffect(() => {
+    if (!editor) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        onChange(editor.getHTML())
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [editor, onChange])
+
   if (!editor) {
     return null
   }
 
-  const setLink = () => {
-    const previousUrl = editor.getAttributes('link').href
-    const url = window.prompt('URL', previousUrl)
-
-    if (url === null) {
+  const handleCommandSelect = (action: string) => {
+    if (!editor || commandStartPos.current === null) {
       return
     }
 
-    if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run()
-      return
+    // Store positions before closing menu
+    const { from } = editor.state.selection
+    const deleteFrom = commandStartPos.current
+    const deleteTo = from
+    
+    // Close menu and clear state
+    setShowCommandMenu(false)
+    setCommandQuery('')
+    commandStartPos.current = null
+    
+    // Execute the command based on type
+    switch (action) {
+      // Block-level commands (headings, lists, quotes)
+      // These need special handling: if there's text before @, create new line
+      case 'setParagraph':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .insertContent({ type: 'paragraph' })
+          .setParagraph()
+          .focus()
+          .run()
+        break
+      case 'toggleHeading1':
+        // Delete @ and query, create new paragraph for heading
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .insertContent({ type: 'paragraph' })
+          .setHeading({ level: 1 })
+          .focus()
+          .run()
+        break
+      case 'toggleHeading2':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .insertContent({ type: 'paragraph' })
+          .setHeading({ level: 2 })
+          .focus()
+          .run()
+        break
+      case 'toggleHeading3':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .insertContent({ type: 'paragraph' })
+          .setHeading({ level: 3 })
+          .focus()
+          .run()
+        break
+      case 'toggleBulletList':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .insertContent({ type: 'paragraph' })
+          .toggleBulletList()
+          .focus()
+          .run()
+        break
+      case 'toggleOrderedList':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .insertContent({ type: 'paragraph' })
+          .toggleOrderedList()
+          .focus()
+          .run()
+        break
+      case 'toggleBlockquote':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .insertContent({ type: 'paragraph' })
+          .toggleBlockquote()
+          .focus()
+          .run()
+        break
+      
+      // Text formatting commands - delete @query, insert zero-width space with mark
+      case 'toggleBold':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .focus()
+          .insertContent({
+            type: 'text',
+            text: ' ',
+            marks: [{ type: 'bold' }],
+          })
+          .run()
+        break
+      
+      case 'toggleItalic':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .focus()
+          .insertContent({
+            type: 'text',
+            text: ' ',
+            marks: [{ type: 'italic' }],
+          })
+          .run()
+        break
+      
+      case 'toggleUnderline':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .focus()
+          .insertContent({
+            type: 'text',
+            text: ' ',
+            marks: [{ type: 'underline' }],
+          })
+          .run()
+        break
+      
+      case 'toggleStrike':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .focus()
+          .insertContent({
+            type: 'text',
+            text: ' ',
+            marks: [{ type: 'strike' }],
+          })
+          .run()
+        break
+      
+      case 'toggleCode':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .focus()
+          .insertContent({
+            type: 'text',
+            text: ' ',
+            marks: [{ type: 'code' }],
+          })
+          .run()
+        break
+      
+      // Link
+      case 'setLink':
+        const url = window.prompt('URL')
+        if (url) {
+          editor.chain()
+            .deleteRange({ from: deleteFrom, to: deleteTo })
+            .setLink({ href: url })
+            .focus()
+            .run()
+        }
+        break
+      
+      // Alignment commands
+      case 'alignLeft':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .setTextAlign('left')
+          .focus()
+          .run()
+        break
+      case 'alignCenter':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .setTextAlign('center')
+          .focus()
+          .run()
+        break
+      case 'alignRight':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .setTextAlign('right')
+          .focus()
+          .run()
+        break
+      case 'alignJustify':
+        editor.chain()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .setTextAlign('justify')
+          .focus()
+          .run()
+        break
     }
+  }
 
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+  const handleCloseMenu = () => {
+    setShowCommandMenu(false)
+    setCommandQuery('')
+    commandStartPos.current = null
+    editor?.commands.focus()
   }
 
   return (
-    <div className="border border-zinc-800 rounded-lg overflow-hidden bg-black">
-      {/* Toolbar */}
-      <div className="border-b border-zinc-800 bg-zinc-900 p-2 flex flex-wrap gap-1">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={editor.isActive('bold') ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <Bold className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={editor.isActive('italic') ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <Italic className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          className={editor.isActive('underline') ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <UnderlineIcon className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={editor.isActive('strike') ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <Strikethrough className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          className={editor.isActive('code') ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <Code className="h-4 w-4" />
-        </Button>
-        
-        <div className="w-px h-6 bg-zinc-800 mx-1" />
-        
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={editor.isActive('bulletList') ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <List className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={editor.isActive('orderedList') ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <ListOrdered className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          className={editor.isActive('blockquote') ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <Quote className="h-4 w-4" />
-        </Button>
-
-        <div className="w-px h-6 bg-zinc-800 mx-1" />
-
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={setLink}
-          className={editor.isActive('link') ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <LinkIcon className="h-4 w-4" />
-        </Button>
-        
-        <div className="w-px h-6 bg-zinc-800 mx-1" />
-
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().setTextAlign('left').run()}
-          className={editor.isActive({ textAlign: 'left' }) ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <AlignLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().setTextAlign('center').run()}
-          className={editor.isActive({ textAlign: 'center' }) ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <AlignCenter className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().setTextAlign('right').run()}
-          className={editor.isActive({ textAlign: 'right' }) ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <AlignRight className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().setTextAlign('justify').run()}
-          className={editor.isActive({ textAlign: 'justify' }) ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}
-        >
-          <AlignJustify className="h-4 w-4" />
-        </Button>
-        
-        <div className="w-px h-6 bg-zinc-800 mx-1" />
-        
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
-          className="text-gray-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30"
-        >
-          <Undo className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
-          className="text-gray-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30"
-        >
-          <Redo className="h-4 w-4" />
-        </Button>
-      </div>
-
+    <div className="notion-editor-wrapper relative">
       {/* Editor */}
       <EditorContent editor={editor} className="text-white" />
+
+      {/* Command Menu */}
+      {showCommandMenu && (
+        <CommandMenu
+          position={menuPosition}
+          query={commandQuery}
+          onSelect={handleCommandSelect}
+          onClose={handleCloseMenu}
+        />
+      )}
     </div>
   )
 }
-
