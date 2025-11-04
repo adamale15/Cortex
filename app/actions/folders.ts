@@ -35,8 +35,8 @@ export async function createFolder(formData: FormData): Promise<{ success: boole
   }
 
   const name = formData.get('name') as string
-  const color = formData.get('color') as string || '#6366f1'
   const emoji = formData.get('emoji') as string || null
+  const logoFile = formData.get('logo_file') as File | null
 
   if (!name || name.trim() === '') {
     return { success: false, error: 'Folder name is required' }
@@ -53,13 +53,27 @@ export async function createFolder(formData: FormData): Promise<{ success: boole
 
   const newPosition = (maxPositionData?.position ?? -1) + 1
 
+  let logoUrl: string | null = null
+  if (logoFile && typeof logoFile === 'object' && (logoFile as any).size > 0) {
+    const path = `${user.id}/${crypto.randomUUID()}_${(logoFile as any).name}`
+    const { error: uploadError } = await supabase.storage.from('folder-logos').upload(path, logoFile as any, {
+      upsert: false,
+      contentType: (logoFile as any).type,
+    })
+    if (uploadError) {
+      return { success: false, error: `Logo upload failed: ${uploadError.message}` }
+    }
+    // Store the object path; signed URL will be generated on read
+    logoUrl = path
+  }
+
   const { data, error } = await supabase
     .from('folders')
     .insert({
       user_id: user.id,
       name: name.trim(),
-      color,
       emoji,
+      logo_url: logoUrl,
       position: newPosition,
     })
     .select()
@@ -82,20 +96,39 @@ export async function updateFolder(folderId: string, formData: FormData): Promis
   }
 
   const name = formData.get('name') as string
-  const color = formData.get('color') as string
   const emoji = formData.get('emoji') as string || null
+  const logoFile = formData.get('logo_file') as File | null
+  const clearLogo = formData.get('clear_logo') === 'true'
 
   if (!name || name.trim() === '') {
     return { success: false, error: 'Folder name is required' }
   }
 
+  const updates: any = {
+    name: name.trim(),
+    emoji,
+  }
+
+  if (clearLogo) {
+    updates.logo_url = null
+  }
+
+  if (logoFile && typeof logoFile === 'object' && (logoFile as any).size > 0) {
+    const path = `${user.id}/${crypto.randomUUID()}_${(logoFile as any).name}`
+    const { error: uploadError } = await supabase.storage.from('folder-logos').upload(path, logoFile as any, {
+      upsert: false,
+      contentType: (logoFile as any).type,
+    })
+    if (uploadError) {
+      return { success: false, error: `Logo upload failed: ${uploadError.message}` }
+    }
+    // Store the object path; we'll sign on read
+    updates.logo_url = path
+  }
+
   const { error } = await supabase
     .from('folders')
-    .update({
-      name: name.trim(),
-      color,
-      emoji,
-    })
+    .update(updates)
     .eq('id', folderId)
     .eq('user_id', user.id)
 

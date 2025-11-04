@@ -33,9 +33,11 @@ export function Editor({ content, onChange, placeholder = 'Type @ for commands..
       }),
       Underline,
       Link.configure({
-        openOnClick: false,
+        openOnClick: true,
         HTMLAttributes: {
           class: 'text-blue-400 underline cursor-pointer',
+          target: '_blank',
+          rel: 'noopener noreferrer',
         },
       }),
       TextAlign.configure({
@@ -255,12 +257,25 @@ export function Editor({ content, onChange, placeholder = 'Type @ for commands..
       
       // Link
       case 'setLink':
-        const url = window.prompt('URL')
-        if (url) {
+        {
+          const url = window.prompt('Enter URL')
+          if (!url) break
+
+          const linkTextInput = window.prompt('Link text (optional)') || ''
+          const linkText = linkTextInput.trim() || url
+
           editor.chain()
             .deleteRange({ from: deleteFrom, to: deleteTo })
-            .setLink({ href: url })
             .focus()
+            .insertContent({
+              type: 'text',
+              text: linkText,
+              marks: [
+                { type: 'link', attrs: { href: url } },
+              ],
+            })
+            // add a trailing space so typing continues outside the link
+            .insertContent({ type: 'text', text: ' ' })
             .run()
         }
         break

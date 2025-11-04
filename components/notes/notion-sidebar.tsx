@@ -13,10 +13,15 @@ import {
   MoreHorizontal,
   Edit2,
   Trash2,
-  Home
+  Home,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface NotionSidebarProps {
   folders: Folder[]
@@ -30,6 +35,12 @@ interface NotionSidebarProps {
   onEditNote: (note: Note) => void
   onDeleteNote: (noteId: string) => void
   onHomeClick: () => void
+  onMoveFolderUp?: (folderId: string) => void
+  onMoveFolderDown?: (folderId: string) => void
+  onMoveNoteUp?: (noteId: string) => void
+  onMoveNoteDown?: (noteId: string) => void
+  onReorderFolders?: (folderIds: string[]) => void
+  onReorderNotes?: (noteIds: string[]) => void
 }
 
 export function NotionSidebar({
@@ -44,11 +55,21 @@ export function NotionSidebar({
   onEditNote,
   onDeleteNote,
   onHomeClick,
+  onMoveFolderUp,
+  onMoveFolderDown,
+  onMoveNoteUp,
+  onMoveNoteDown,
+  onReorderFolders,
+  onReorderNotes,
 }: NotionSidebarProps) {
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [hoveredNote, setHoveredNote] = useState<string | null>(null)
   const [hoveredFolder, setHoveredFolder] = useState<string | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  )
 
   const toggleFolder = (folderId: string) => {
     const newCollapsed = new Set(collapsedFolders)
@@ -217,13 +238,27 @@ export function NotionSidebar({
         {/* Folders & Notes */}
         {!searchQuery && (
           <div className="mt-3 space-y-1">
-            {/* Folders */}
+            {/* Folders (Draggable) */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={(event) => {
+                const { active, over } = event
+                if (!over || active.id === over.id) return
+                const oldIndex = folders.findIndex(f => f.id === active.id)
+                const newIndex = folders.findIndex(f => f.id === over.id)
+                if (oldIndex === -1 || newIndex === -1) return
+                const newOrder = arrayMove(folders.map(f => f.id), oldIndex, newIndex)
+                onReorderFolders?.(newOrder)
+              }}
+            >
+              <SortableContext items={folders.map(f => f.id)} strategy={verticalListSortingStrategy}>
             {folders.map((folder) => {
               const folderNotes = getNotesInFolder(folder.id)
               const isCollapsed = collapsedFolders.has(folder.id)
 
               return (
-                <div key={folder.id}>
+                <SortableFolder key={folder.id} id={folder.id}>
                   {/* Folder Header */}
                   <div
                     onMouseEnter={() => setHoveredFolder(folder.id)}
@@ -242,16 +277,36 @@ export function NotionSidebar({
                     </button>
                     
                     <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                      {folder.emoji ? (
+                      {folder.logo_url || (folder as any).logo_signed_url ? (
+                        <img src={(folder as any).logo_signed_url || folder.logo_url} alt="logo" className="h-4 w-4 rounded-sm object-cover" />
+                      ) : folder.emoji ? (
                         <span className="text-sm">{folder.emoji}</span>
                       ) : (
-                        <FolderIcon className="h-3.5 w-3.5" style={{ color: folder.color }} />
+                        <FolderIcon className="h-3.5 w-3.5 text-zinc-400" />
                       )}
                       <span className="text-xs font-medium truncate">{folder.name}</span>
                     </div>
 
                     {hoveredFolder === folder.id && (
                       <div className="flex items-center gap-0.5">
+                        {onMoveFolderUp && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onMoveFolderUp(folder.id) }}
+                            className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white"
+                            title="Move up"
+                          >
+                            <ArrowUp className="h-3 w-3" />
+                          </button>
+                        )}
+                        {onMoveFolderDown && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onMoveFolderDown(folder.id) }}
+                            className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white"
+                            title="Move down"
+                          >
+                            <ArrowDown className="h-3 w-3" />
+                          </button>
+                        )}
                         <button
                           onClick={() => onNewNote(folder.id)}
                           className="p-1 hover:bg-zinc-700 rounded"
@@ -283,70 +338,108 @@ export function NotionSidebar({
                   {/* Folder Notes */}
                   {!isCollapsed && (
                     <div className="ml-4 space-y-0.5 mt-0.5">
-                      {folderNotes.map((note) => (
-                        <button
-                          key={note.id}
-                          onClick={() => onNoteSelect(note.id)}
-                          onMouseEnter={() => setHoveredNote(note.id)}
-                          onMouseLeave={() => setHoveredNote(null)}
-                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors text-sm group ${
-                            selectedNoteId === note.id
-                              ? 'bg-zinc-800 text-white'
-                              : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-                          }`}
-                        >
-                          <FileText className="h-3.5 w-3.5 flex-shrink-0" />
-                          <span className="flex-1 text-left truncate text-xs">{note.title}</span>
-                          {hoveredNote === note.id && (
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={(event) => {
+                          const { active, over } = event
+                          if (!over || active.id === over.id) return
+                          const notesList = getNotesInFolder(folder.id)
+                          const oldIndex = notesList.findIndex(n => n.id === active.id)
+                          const newIndex = notesList.findIndex(n => n.id === over.id)
+                          if (oldIndex === -1 || newIndex === -1) return
+                          const newOrder = arrayMove(notesList.map(n => n.id), oldIndex, newIndex)
+                          onReorderNotes?.(newOrder)
+                        }}
+                      >
+                        <SortableContext items={folderNotes.map(n => n.id)} strategy={verticalListSortingStrategy}>
+                        {folderNotes.map((note) => (
+                          <SortableNote key={note.id} id={note.id}>
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onDeleteNote(note.id)
-                              }}
-                              className="p-1 hover:bg-zinc-700 rounded text-red-400"
+                              onClick={() => onNoteSelect(note.id)}
+                              onMouseEnter={() => setHoveredNote(note.id)}
+                              onMouseLeave={() => setHoveredNote(null)}
+                              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors text-sm group ${
+                                selectedNoteId === note.id
+                                  ? 'bg-zinc-800 text-white'
+                                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                              }`}
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="flex-1 text-left truncate text-xs">{note.title}</span>
+                              {hoveredNote === note.id && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onDeleteNote(note.id)
+                                  }}
+                                  className="p-1 hover:bg-zinc-700 rounded text-red-400"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              )}
                             </button>
-                          )}
-                        </button>
-                      ))}
+                          </SortableNote>
+                        ))}
+                        </SortableContext>
+                      </DndContext>
                     </div>
                   )}
-                </div>
+                </SortableFolder>
               )
             })}
+              </SortableContext>
+            </DndContext>
 
             {/* Notes without folder */}
             {getNotesInFolder(null).length > 0 && (
               <div>
                 <div className="text-xs font-medium text-zinc-500 px-2 py-1.5">Uncategorized</div>
-                {getNotesInFolder(null).map((note) => (
-                  <button
-                    key={note.id}
-                    onClick={() => onNoteSelect(note.id)}
-                    onMouseEnter={() => setHoveredNote(note.id)}
-                    onMouseLeave={() => setHoveredNote(null)}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors text-sm group ${
-                      selectedNoteId === note.id
-                        ? 'bg-zinc-800 text-white'
-                        : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-                    }`}
-                  >
-                    <FileText className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="flex-1 text-left truncate text-xs">{note.title}</span>
-                    {hoveredNote === note.id && (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event) => {
+                    const { active, over } = event
+                    if (!over || active.id === over.id) return
+                    const notesList = getNotesInFolder(null)
+                    const oldIndex = notesList.findIndex(n => n.id === active.id)
+                    const newIndex = notesList.findIndex(n => n.id === over.id)
+                    if (oldIndex === -1 || newIndex === -1) return
+                    const newOrder = arrayMove(notesList.map(n => n.id), oldIndex, newIndex)
+                    onReorderNotes?.(newOrder)
+                  }}
+                >
+                  <SortableContext items={getNotesInFolder(null).map(n => n.id)} strategy={verticalListSortingStrategy}>
+                  {getNotesInFolder(null).map((note) => (
+                    <SortableNote key={note.id} id={note.id}>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onDeleteNote(note.id)
-                        }}
-                        className="p-1 hover:bg-zinc-700 rounded text-red-400"
+                        onClick={() => onNoteSelect(note.id)}
+                        onMouseEnter={() => setHoveredNote(note.id)}
+                        onMouseLeave={() => setHoveredNote(null)}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors text-sm group ${
+                          selectedNoteId === note.id
+                            ? 'bg-zinc-800 text-white'
+                            : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                        }`}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="flex-1 text-left truncate text-xs">{note.title}</span>
+                        {hoveredNote === note.id && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onDeleteNote(note.id)
+                            }}
+                            className="p-1 hover:bg-zinc-700 rounded text-red-400"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
                       </button>
-                    )}
-                  </button>
-                ))}
+                    </SortableNote>
+                  ))}
+                  </SortableContext>
+                </DndContext>
               </div>
             )}
           </div>
@@ -366,4 +459,29 @@ export function NotionSidebar({
     </div>
   )
 }
+// Sortable wrappers
+function SortableFolder({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  )
+}
 
+function SortableNote({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  )
+}

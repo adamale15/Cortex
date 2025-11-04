@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { Note, Folder } from '@/types'
-import { getNotes, createNote, updateNote, deleteNote } from '@/app/actions/notes'
-import { getFolders, createFolder, updateFolder, deleteFolder } from '@/app/actions/folders'
+import { getNotes, createNote, updateNote, deleteNote, reorderNotes } from '@/app/actions/notes'
+import { getFolders, createFolder, updateFolder, deleteFolder, reorderFolders } from '@/app/actions/folders'
 import { NotionSidebar } from '@/components/notes/notion-sidebar'
 import { NoteView } from '@/components/notes/note-view'
 import { EmptyState } from '@/components/notes/empty-state'
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { createClient as createBrowserSupabase } from '@/lib/supabase/client'
 
 export default function NotesPage() {
   const router = useRouter()
@@ -27,8 +28,9 @@ export default function NotesPage() {
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null)
   const [folderFormData, setFolderFormData] = useState({
     name: '',
-    color: '#6366f1',
     emoji: '',
+    logoFile: null as File | null,
+    clearLogo: false,
   })
   
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false)
@@ -70,7 +72,29 @@ export default function NotesPage() {
   const loadFolders = async () => {
     const result = await getFolders()
     if (result.folders) {
-      setFolders(result.folders)
+      // If bucket is private, generate signed URLs for any logo paths
+      const supabase = createBrowserSupabase()
+      const augmented = await Promise.all(
+        result.folders.map(async (f) => {
+          const folder: any = { ...f }
+          if (folder.logo_url) {
+            const isHttp = typeof folder.logo_url === 'string' && folder.logo_url.startsWith('http')
+            if (!isHttp) {
+              const { data, error } = await supabase
+                .storage
+                .from('folder-logos')
+                .createSignedUrl(folder.logo_url, 60 * 60) // 1 hour
+              if (!error && data?.signedUrl) {
+                folder.logo_signed_url = data.signedUrl
+              }
+            } else {
+              folder.logo_signed_url = folder.logo_url
+            }
+          }
+          return folder
+        })
+      )
+      setFolders(augmented as any)
     }
   }
 
@@ -154,14 +178,14 @@ export default function NotesPage() {
 
   const handleNewFolder = () => {
     setEditingFolder(null)
-    setFolderFormData({ name: '', color: '#6366f1', emoji: '' })
+    setFolderFormData({ name: '', emoji: '', logoFile: null, clearLogo: false })
     setIsFolderModalOpen(true)
     setError(null)
   }
 
   const handleEditFolder = (folder: Folder) => {
     setEditingFolder(folder)
-    setFolderFormData({ name: folder.name, color: folder.color, emoji: folder.emoji || '' })
+    setFolderFormData({ name: folder.name, emoji: folder.emoji || '', logoFile: null, clearLogo: false })
     setIsFolderModalOpen(true)
     setError(null)
   }
@@ -177,8 +201,9 @@ export default function NotesPage() {
 
     const data = new FormData()
     data.append('name', folderFormData.name)
-    data.append('color', folderFormData.color)
     data.append('emoji', folderFormData.emoji)
+    if (folderFormData.logoFile) data.append('logo_file', folderFormData.logoFile)
+    if (folderFormData.clearLogo) data.append('clear_logo', 'true')
 
     const result = editingFolder
       ? await updateFolder(editingFolder.id, data)
@@ -192,6 +217,33 @@ export default function NotesPage() {
     }
 
     setIsSaving(false)
+  }
+
+  // Reorder helpers
+  const moveFolder = async (folderId: string, direction: 'up' | 'down') => {
+    const index = folders.findIndex(f => f.id === folderId)
+    if (index === -1) return
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= folders.length) return
+    const newOrder = [...folders]
+    const [moved] = newOrder.splice(index, 1)
+    newOrder.splice(targetIndex, 0, moved)
+    setFolders(newOrder)
+    await reorderFolders(newOrder.map(f => f.id))
+    await loadFolders()
+  }
+
+  const moveNote = async (noteId: string, direction: 'up' | 'down') => {
+    const index = notes.findIndex(n => n.id === noteId)
+    if (index === -1) return
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= notes.length) return
+    const newOrder = [...notes]
+    const [moved] = newOrder.splice(index, 1)
+    newOrder.splice(targetIndex, 0, moved)
+    setNotes(newOrder)
+    await reorderNotes(newOrder.map(n => n.id))
+    await loadNotes()
   }
 
   const handleDeleteFolder = (folderId: string) => {
@@ -242,6 +294,23 @@ export default function NotesPage() {
         onEditNote={handleEditNoteFromSidebar}
         onDeleteNote={handleDeleteNote}
         onHomeClick={handleHomeClick}
+        onMoveFolderUp={(id) => moveFolder(id, 'up')}
+        onMoveFolderDown={(id) => moveFolder(id, 'down')}
+        onMoveNoteUp={(id) => moveNote(id, 'up')}
+        onMoveNoteDown={(id) => moveNote(id, 'down')}
+        onReorderFolders={async (ids) => {
+          // optimistic UI
+          const reordered = ids.map(id => folders.find(f => f.id === id)!).filter(Boolean)
+          setFolders(reordered)
+          await reorderFolders(ids)
+          await loadFolders()
+        }}
+        onReorderNotes={async (ids) => {
+          const reordered = ids.map(id => notes.find(n => n.id === id)!).filter(Boolean)
+          setNotes(reordered)
+          await reorderNotes(ids)
+          await loadNotes()
+        }}
       />
 
       {/* Main Content */}
@@ -359,48 +428,48 @@ export default function NotesPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="folder-emoji" className="text-white">Icon (Optional)</Label>
-                <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 bg-zinc-800 border border-zinc-700 rounded-lg flex items-center justify-center text-3xl">
-                    {folderFormData.emoji || '📁'}
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 bg-zinc-800 border border-zinc-700 rounded-lg flex items-center justify-center overflow-hidden">
+                    {folderFormData.logoFile ? (
+                      <img src={URL.createObjectURL(folderFormData.logoFile)} alt="preview" className="w-full h-full object-cover" />
+                    ) : editingFolder?.logo_url ? (
+                      <img src={editingFolder.logo_url} alt="logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-3xl">{folderFormData.emoji || '📁'}</span>
+                    )}
                   </div>
-                  <Input
-                    id="folder-emoji"
-                    value={folderFormData.emoji}
-                    onChange={(e) => setFolderFormData({ ...folderFormData, emoji: e.target.value })}
-                    placeholder="Paste an emoji..."
-                    className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
-                    maxLength={2}
-                  />
-                  {folderFormData.emoji && (
-                    <button
-                      onClick={() => setFolderFormData({ ...folderFormData, emoji: '' })}
-                      className="p-2 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      id="folder-emoji"
+                      value={folderFormData.emoji}
+                      onChange={(e) => setFolderFormData({ ...folderFormData, emoji: e.target.value })}
+                      placeholder="Paste an emoji (optional)"
+                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                      maxLength={2}
+                    />
+                    <input
+                      id="folder-logo"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setFolderFormData({ ...folderFormData, logoFile: e.target.files?.[0] || null, clearLogo: false })}
+                      className="text-xs text-zinc-400 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-zinc-800 file:text-white hover:file:bg-zinc-700"
+                    />
+                    {(editingFolder?.logo_url || folderFormData.logoFile) && (
+                      <label className="flex items-center gap-2 text-xs text-zinc-400">
+                        <input
+                          type="checkbox"
+                          checked={folderFormData.clearLogo}
+                          onChange={(e) => setFolderFormData({ ...folderFormData, clearLogo: e.target.checked, logoFile: e.target.checked ? null : folderFormData.logoFile })}
+                        />
+                        Remove logo image
+                      </label>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-zinc-500">Copy and paste any emoji (e.g., 🎨 📚 💼 🎯)</p>
+                <p className="text-xs text-zinc-500">Upload an image or use an emoji. Uploaded image takes priority.</p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="folder-color" className="text-white">Color (for icon background)</Label>
-                <div className="flex items-center gap-3">
-                  <input
-                    id="folder-color"
-                    type="color"
-                    value={folderFormData.color}
-                    onChange={(e) => setFolderFormData({ ...folderFormData, color: e.target.value })}
-                    className="w-12 h-12 rounded-lg cursor-pointer bg-zinc-800 border border-zinc-700"
-                  />
-                  <Input
-                    value={folderFormData.color}
-                    onChange={(e) => setFolderFormData({ ...folderFormData, color: e.target.value })}
-                    placeholder="#6366f1"
-                    className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
-                  />
-                </div>
-              </div>
+              {/* Color removed as requested */}
             </div>
 
             <div className="border-t border-zinc-800 p-6 flex gap-3 justify-end">
