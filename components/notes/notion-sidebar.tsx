@@ -5,6 +5,7 @@ import { Note, Folder } from '@/types'
 import { 
   ChevronRight, 
   ChevronDown, 
+  ChevronLeft,
   Plus, 
   FolderIcon,
   FileText,
@@ -63,6 +64,7 @@ export function NotionSidebar({
   onReorderNotes,
 }: NotionSidebarProps) {
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [hoveredNote, setHoveredNote] = useState<string | null>(null)
   const [hoveredFolder, setHoveredFolder] = useState<string | null>(null)
@@ -129,9 +131,11 @@ export function NotionSidebar({
   })
 
   return (
-    <div className="w-64 bg-zinc-950 border-r border-zinc-800 h-screen flex flex-col">
+    <div className={`${isCollapsed ? 'w-16 p-2' : 'w-64 p-3'} h-screen transition-all duration-200`}>
+      <div className={`relative bg-zinc-950/80 backdrop-blur border border-zinc-800 rounded-2xl h-full flex flex-col shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset] overflow-visible ${isCollapsed ? 'items-center' : ''}`}>{/* panel wrapper */}
       {/* Header */}
-      <div className="p-4 border-b border-zinc-800">
+      {!isCollapsed && (
+      <div className="p-4 border-b border-zinc-800 rounded-t-2xl">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-white font-semibold text-sm">Cortex Notes</h2>
           <Button
@@ -156,20 +160,33 @@ export function NotionSidebar({
           />
         </div>
       </div>
+      )}
+      {/* Collapse toggle button */}
+      <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-20">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="h-7 w-7 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 flex items-center justify-center shadow-lg"
+          title={isCollapsed ? 'Expand' : 'Collapse'}
+        >
+          {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+        </button>
+      </div>
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto p-2">
-        {/* Home */}
-        <button
-          onClick={onHomeClick}
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors text-sm"
-        >
-          <Home className="h-4 w-4" />
-          <span>Home</span>
-        </button>
+        {/* When collapsed, hide all content */}
+        {!isCollapsed && (
+          <button
+            onClick={onHomeClick}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors text-sm"
+          >
+            <Home className="h-4 w-4" />
+            <span>Home</span>
+          </button>
+        )}
 
         {/* Search Results */}
-        {searchQuery && (
+        {!isCollapsed && searchQuery && (
           <div className="mt-3">
             <div className="text-xs font-medium text-zinc-500 px-2 mb-1">Search Results ({filteredNotes.length})</div>
             {filteredNotes.length === 0 ? (
@@ -236,7 +253,7 @@ export function NotionSidebar({
         )}
 
         {/* Folders & Notes */}
-        {!searchQuery && (
+        {!isCollapsed && !searchQuery && (
           <div className="mt-3 space-y-1">
             {/* Folders (Draggable) */}
             <DndContext
@@ -447,14 +464,17 @@ export function NotionSidebar({
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-zinc-800">
-        <Button
-          onClick={() => onNewNote()}
-          className="w-full bg-zinc-800 hover:bg-zinc-700 text-white text-sm h-8"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          New Note
-        </Button>
+      {!isCollapsed && (
+        <div className="p-3 border-t border-zinc-800 rounded-b-2xl w-full">
+          <Button
+            onClick={() => onNewNote()}
+            className="w-full bg-zinc-800 hover:bg-zinc-700 text-white text-sm h-8"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New Note
+          </Button>
+        </div>
+      )}
       </div>
     </div>
   )

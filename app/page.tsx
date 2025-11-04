@@ -2,62 +2,68 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { signOut } from '@/app/actions/auth'
 
 export default async function Home() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // If user is logged in, redirect to dashboard
-  if (user) {
-    redirect('/dashboard')
-  }
+  // Show minimal homepage even if logged in; no redirect
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-black">
-      <div className="max-w-4xl w-full text-center space-y-8">
-        <div className="space-y-4">
-          <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center">
-            <span className="text-white font-bold text-3xl">C</span>
+    <main className="relative min-h-screen bg-black">
+      {/* soft background glow + decorative svgs */}
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className="absolute left-1/2 top-24 h-96 w-96 -translate-x-1/2 rounded-[28px] bg-gradient-to-br from-indigo-800/40 via-zinc-900 to-sky-800/30 blur-3xl opacity-70" />
+      </div>
+
+      <div className="relative z-10 container mx-auto px-6 md:px-8 py-24 md:py-32">
+        <div className="mx-auto max-w-5xl text-center">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 mb-8">
+            <span className="text-white font-semibold">C</span>
           </div>
-          <h1 className="text-6xl font-bold text-white">
-            Welcome to Cortex
+          <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-white">
+            Cortex makes your knowledge unforgettable
           </h1>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Your AI-powered universal learning assistant that captures, organizes, and helps you learn from everything you encounter
+          <p className="mt-6 text-lg md:text-xl text-zinc-400 max-w-3xl mx-auto">
+            Capture notes, organize folders, and search instantly. A focused workspace—no clutter, just flow.
           </p>
-        </div>
 
-        <div className="flex gap-4 justify-center">
-          <Link href="/signup">
-            <Button size="lg" className="text-lg px-8 bg-white text-black hover:bg-gray-100">
-              Get Started
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button size="lg" className="text-lg px-8 border-zinc-800 text-gray-300 hover:bg-zinc-800 hover:text-white">
-              Sign In
-            </Button>
-          </Link>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6 mt-16 text-left">
-          <div className="p-6 rounded-xl border border-zinc-800 bg-zinc-900">
-            <h3 className="font-semibold text-lg mb-2 text-white">📝 Smart Notes</h3>
-            <p className="text-sm text-gray-400">
-              Create, organize, and search through your notes with AI-powered insights
-            </p>
+          <div className="mt-10 flex items-center justify-center gap-4">
+            {user ? (
+              <>
+                <Link href="/dashboard">
+                  <Button size="lg" className="px-8 bg-white text-black hover:bg-zinc-200">Go to Dashboard</Button>
+                </Link>
+                <form action={signOut}>
+                  <Button type="submit" size="lg" className="px-8 bg-zinc-900 text-white border border-zinc-800 hover:bg-zinc-800">Sign Out</Button>
+                </form>
+              </>
+            ) : (
+              <>
+                <Link href="/signup">
+                  <Button size="lg" className="px-8 bg-white text-black hover:bg-zinc-200">Get Started</Button>
+                </Link>
+                <Link href="/login">
+                  <Button size="lg" variant="outline" className="px-8 bg-zinc-900 text-white border border-zinc-800 hover:bg-zinc-800">Sign In</Button>
+                </Link>
+              </>
+            )}
           </div>
-          <div className="p-6 rounded-xl border border-zinc-800 bg-zinc-900">
-            <h3 className="font-semibold text-lg mb-2 text-white">🤖 AI Chat</h3>
-            <p className="text-sm text-gray-400">
-              Ask questions about your content and get instant, context-aware answers
-            </p>
-          </div>
-          <div className="p-6 rounded-xl border border-zinc-800 bg-zinc-900">
-            <h3 className="font-semibold text-lg mb-2 text-white">📁 File Management</h3>
-            <p className="text-sm text-gray-400">
-              Upload and manage all your files in one secure, searchable place
-            </p>
+            
+          <div className="mt-24 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 p-4 text-left">
+              <p className="text-sm text-zinc-400">Notes</p>
+              <p className="mt-1 text-zinc-500 text-sm">Write, edit, and organize.</p>
+            </div>
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 p-4 text-left">
+              <p className="text-sm text-zinc-400">Search</p>
+              <p className="mt-1 text-zinc-500 text-sm">Find anything instantly.</p>
+            </div>
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 p-4 text-left">
+              <p className="text-sm text-zinc-400">Focus</p>
+              <p className="mt-1 text-zinc-500 text-sm">Minimal, distraction‑free.</p>
+            </div>
           </div>
         </div>
       </div>

@@ -19,7 +19,7 @@ const config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-rubik)", "sans-serif"],
+        sans: ["var(--font-space-grotesk)", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

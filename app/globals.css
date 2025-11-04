@@ -334,6 +334,20 @@
   @apply text-blue-400 font-semibold;
 }
 
+/* Subtle float animation for decorative SVGs on the homepage */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.float-slow {
+  animation: floatY 12s ease-in-out infinite;
+}
+
+.float-slower {
+  animation: floatY 16s ease-in-out infinite;
+}
+
 /* Search highlight styles */
 .search-highlight-wrapper {
   display: inline;

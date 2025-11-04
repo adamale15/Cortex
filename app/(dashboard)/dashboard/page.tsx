@@ -3,79 +3,37 @@ import { signOut } from '@/app/actions/auth'
 import { Navbar } from '@/components/navbar'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { FileText, Upload, Bell, MessageSquare, ArrowRight } from 'lucide-react'
+import { FileText, Upload, Bell, MessageSquare } from 'lucide-react'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Fetch counts
-  const { count: notesCount } = await supabase
-    .from('notes')
-    .select('*', { count: 'exact', head: true })
-  
-  const { count: filesCount } = await supabase
-    .from('files')
-    .select('*', { count: 'exact', head: true })
-  
-  const { count: remindersCount } = await supabase
-    .from('reminders')
-    .select('*', { count: 'exact', head: true })
-
-  const features = [
-    {
-      title: 'Notes',
-      description: 'Create and organize your notes',
-      icon: FileText,
-      count: notesCount || 0,
-      href: '/notes',
-      gradient: 'from-blue-500 to-cyan-500',
-    },
-    {
-      title: 'Files',
-      description: 'Upload and manage files',
-      icon: Upload,
-      count: filesCount || 0,
-      href: '/files',
-      gradient: 'from-purple-500 to-pink-500',
-    },
-    {
-      title: 'Reminders',
-      description: 'Set up reminders',
-      icon: Bell,
-      count: remindersCount || 0,
-      href: '/reminders',
-      gradient: 'from-orange-500 to-red-500',
-    },
-    {
-      title: 'AI Chat',
-      description: 'Chat with AI assistant',
-      icon: MessageSquare,
-      count: 0,
-      href: '/chat',
-      gradient: 'from-green-500 to-emerald-500',
-    },
-  ]
+  // Minimal dashboard - no cards grid
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="relative min-h-screen bg-black">
+      {/* Soft background glow like homepage */}
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className="absolute left-1/2 top-24 h-96 w-96 -translate-x-1/2 rounded-[28px] bg-gradient-to-br from-indigo-800/40 via-zinc-900 to-sky-800/30 blur-3xl opacity-70" />
+      </div>
       {/* Navigation */}
       <Navbar />
       
       {/* Header */}
-      <header className="border-b border-zinc-800 bg-black">
-        <div className="container mx-auto px-4 py-6">
+      <header className="bg-transparent relative z-10">
+        <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-              <p className="text-gray-400 mt-1">
+              <h1 className="text-4xl font-semibold text-white">Dashboard</h1>
+              <p className="text-zinc-400 mt-2">
                 Welcome back, {user?.email}
               </p>
             </div>
             <form action={signOut}>
               <Button
                 type="submit"
-                className="border-zinc-800 text-gray-300 hover:bg-zinc-800 hover:text-white"
+                className="border-zinc-800 text-white hover:bg-zinc-900"
               >
                 Sign Out
               </Button>
@@ -85,52 +43,16 @@ export default async function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Feature Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {features.map((feature) => {
-            const Icon = feature.icon
-            return (
-              <Link
-                key={feature.title}
-                href={feature.href}
-                className="group relative bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-zinc-700 transition-all duration-300 overflow-hidden"
-              >
-                {/* Gradient overlay on hover */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-                
-                <div className="relative">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4`}>
-                    <Icon className="h-6 w-6 text-white" />
-                  </div>
-                  
-                  <h3 className="text-xl font-semibold text-white mb-2 flex items-center justify-between">
-                    {feature.title}
-                    <ArrowRight className="h-5 w-5 text-gray-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
-                  </h3>
-                  
-                  <p className="text-gray-400 text-sm mb-4">
-                    {feature.description}
-                  </p>
-                  
-                  <div className="text-3xl font-bold text-white">
-                    {feature.count}
-                  </div>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-
-        {/* Welcome Card */}
-        <div className="bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 rounded-2xl p-8">
+      <main className="relative z-10 container mx-auto px-4 py-8">
+        {/* Welcome Card only */}
+        <div className="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-8 backdrop-blur">
           <div className="flex items-start gap-4">
             <div className="text-5xl">🎉</div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-white mb-2">
+              <h2 className="text-2xl font-semibold text-white mb-2">
                 Welcome to Cortex!
               </h2>
-              <p className="text-gray-400 mb-6">
+              <p className="text-zinc-400 mb-6">
                 Your AI-powered learning assistant is ready. Here's what you can do:
               </p>
               
@@ -141,7 +63,7 @@ export default async function DashboardPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-medium mb-1">Create Notes</h3>
-                    <p className="text-gray-500 text-sm">Write and organize your thoughts with our rich text editor</p>
+                    <p className="text-zinc-500 text-sm">Write and organize your thoughts with our rich text editor</p>
                   </div>
                 </div>
                 
@@ -151,7 +73,7 @@ export default async function DashboardPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-medium mb-1">Upload Files</h3>
-                    <p className="text-gray-500 text-sm">Store and manage your documents in one place</p>
+                    <p className="text-zinc-500 text-sm">Store and manage your documents in one place</p>
                   </div>
                 </div>
                 
@@ -161,7 +83,7 @@ export default async function DashboardPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-medium mb-1">Set Reminders</h3>
-                    <p className="text-gray-500 text-sm">Never miss important tasks or deadlines</p>
+                    <p className="text-zinc-500 text-sm">Never miss important tasks or deadlines</p>
                   </div>
                 </div>
                 
@@ -171,7 +93,7 @@ export default async function DashboardPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-medium mb-1">AI Chat</h3>
-                    <p className="text-gray-500 text-sm">Get help and insights from AI about your content</p>
+                    <p className="text-zinc-500 text-sm">Get help and insights from AI about your content</p>
                   </div>
                 </div>
               </div>
@@ -184,7 +106,7 @@ export default async function DashboardPage() {
                   </Button>
                 </Link>
                 <Link href="/files">
-                  <Button className="border-zinc-800 text-gray-300 hover:bg-zinc-800 hover:text-white">
+                  <Button className="border-zinc-800 text-white hover:bg-zinc-900">
                     <Upload className="h-4 w-4 mr-2" />
                     Upload File
                   </Button>

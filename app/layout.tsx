@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Rubik } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const rubik = Rubik({ 
+const spaceGrotesk = Space_Grotesk({ 
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-rubik",
+  weight: ["600"],
+  variable: "--font-space-grotesk",
 });
 
 export const metadata: Metadata = {
@@ -24,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${rubik.variable} ${rubik.className}`}>
+      <body className={`${spaceGrotesk.variable} ${spaceGrotesk.className}`}>
         <Providers>
           {children}
         </Providers>

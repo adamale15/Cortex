@@ -179,8 +179,8 @@ export function NoteView({ note, folders, onUpdate, onDelete, searchHighlight }:
   const folder = folders.find(f => f.id === note.folder_id)
 
   return (
-    <div className="flex-1 bg-black h-screen overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-8 py-16">
+    <div className="flex-1 h-screen overflow-y-auto p-3">
+      <div className="max-w-3xl mx-auto px-10 py-12 bg-zinc-950/60 border border-zinc-900 rounded-2xl backdrop-blur shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-zinc-500 mb-8">
           <span>Cortex</span>
@@ -188,10 +188,12 @@ export function NoteView({ note, folders, onUpdate, onDelete, searchHighlight }:
           {folder && (
             <>
               <div className="flex items-center gap-1.5">
-                {folder.emoji ? (
+                {(folder as any).logo_signed_url || (folder as any).logo_url ? (
+                  <img src={(folder as any).logo_signed_url || (folder as any).logo_url} alt="logo" className="h-3.5 w-3.5 rounded-sm object-cover" />
+                ) : folder.emoji ? (
                   <span className="text-xs">{folder.emoji}</span>
                 ) : (
-                  <FolderIcon className="h-3.5 w-3.5" style={{ color: folder.color }} />
+                  <FolderIcon className="h-3.5 w-3.5 text-zinc-400" />
                 )}
                 <span>{folder.name}</span>
               </div>

@@ -280,7 +280,11 @@ export default function NotesPage() {
   const selectedNote = notes.find(n => n.id === selectedNoteId)
 
   return (
-    <div className="flex h-screen bg-black overflow-hidden">
+    <div className="relative flex h-screen bg-black overflow-hidden">
+      {/* Soft background glow like homepage */}
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className="absolute left-1/2 top-12 h-96 w-96 -translate-x-1/2 rounded-[28px] bg-gradient-to-br from-indigo-800/40 via-zinc-900 to-sky-800/30 blur-3xl opacity-70" />
+      </div>
       {/* Sidebar */}
       <NotionSidebar
         folders={folders}
