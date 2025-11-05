@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Note, Folder } from '@/types'
 import { Editor } from '@/components/notes/editor'
-import { ChevronRight, Calendar, Tag, MoreHorizontal, Trash2, FolderIcon } from 'lucide-react'
+import { ChevronRight, Calendar, Tag, MoreHorizontal, Trash2, FolderIcon, Download } from 'lucide-react'
 import { formatDistanceToNow } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
@@ -177,14 +177,158 @@ export function NoteView({ note, folders, onUpdate, onDelete, searchHighlight }:
   }
 
   const folder = folders.find(f => f.id === note.folder_id)
+  const [showExport, setShowExport] = useState(false)
+
+  const handleDownloadImage = async () => {
+    try {
+      const editorEl = document.querySelector('.ProseMirror') as HTMLElement | null
+      if (!editorEl) return
+
+      const measure = document.createElement('div')
+      measure.style.position = 'fixed'
+      measure.style.left = '-10000px'
+      measure.style.top = '0'
+      measure.style.width = '900px'
+      measure.style.padding = '48px'
+      measure.style.background = '#ffffff'
+      measure.style.color = '#000000'
+      measure.style.fontFamily = getComputedStyle(document.body).fontFamily
+      measure.style.lineHeight = '1.6'
+      measure.className = 'export-root'
+      // Include the note title as heading
+      measure.innerHTML = `<h1>${(note.title || 'Untitled').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</h1>` + editorEl.innerHTML
+      // Remove external images to avoid CORS-tainting the canvas
+      measure.querySelectorAll('img').forEach((img) => {
+        img.remove()
+      })
+      document.body.appendChild(measure)
+
+      const width = measure.offsetWidth
+      const height = measure.offsetHeight
+
+      const style = `
+        <style>
+          .export-root { font-size:16px; color:#000; }
+          .export-root h1{ font-size:32px; font-weight:700; margin:16px 0; color:#000; }
+          .export-root h2{ font-size:26px; font-weight:700; margin:14px 0; color:#000; }
+          .export-root h3{ font-size:22px; font-weight:700; margin:12px 0; color:#000; }
+          .export-root p{ margin:10px 0; }
+          .export-root strong{ font-weight:800; color:#000; }
+          .export-root em{ font-style:italic; }
+          .export-root u{ text-decoration:underline; }
+          .export-root s{ text-decoration:line-through; }
+          .export-root ul{ margin:8px 0; padding-left:24px; list-style:disc; }
+          .export-root ol{ margin:8px 0; padding-left:24px; list-style:decimal; }
+          .export-root li{ margin:4px 0; }
+          .export-root blockquote{ border-left:4px solid #ddd; padding-left:12px; color:#222; font-style:italic; }
+          .export-root code{ background:#f3f3f3; padding:2px 6px; border-radius:4px; font-family:monospace; font-size:90%; color:#111; }
+          .export-root a{ color:#111; text-decoration:underline; }
+        </style>
+      `
+
+      const svg = `<?xml version="1.0" encoding="UTF-8"?>
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+          <foreignObject x="0" y="0" width="100%" height="100%">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;background:#ffffff;color:#000;">
+              ${style}
+              <div class="export-root" style="padding:48px;">${measure.innerHTML}</div>
+            </div>
+          </foreignObject>
+        </svg>`
+
+      document.body.removeChild(measure)
+
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      const canvas = document.createElement('canvas')
+      const scale = Math.max(2, Math.ceil(window.devicePixelRatio || 1) * 2) // 2-4x upscale for sharpness
+      canvas.width = width * scale
+      canvas.height = height * scale
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.scale(scale, scale)
+      ctx.imageSmoothingEnabled = true
+      // @ts-ignore - not all browsers
+      ctx.imageSmoothingQuality = 'high'
+
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0)
+          resolve()
+        }
+        img.onerror = reject
+        // Use data URL to avoid blob revocation timing and some browser security issues
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
+      })
+
+      const dataUrl = canvas.toDataURL('image/png', 1.0)
+      const a = document.createElement('a')
+      a.href = dataUrl
+      a.download = `${note.title || 'note'}.png`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setShowExport(false)
+    } catch (e) {
+      console.error('Download failed', e)
+      alert('Download failed. Try removing images from the note and try again.')
+    }
+  }
+
+  const handleDownloadPDF = () => {
+    const editorEl = document.querySelector('.ProseMirror') as HTMLElement | null
+    if (!editorEl) return
+    const w = window.open('', '_blank')
+    if (!w) return
+    const titleText = (note.title || 'Untitled').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    const html = `<!doctype html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${titleText}</title>
+        <style>
+          @page { size: A4; margin: 24mm; }
+          html, body { height: 100%; }
+          body{background:#fff;color:#000;font-family:${getComputedStyle(document.body).fontFamily};line-height:1.6;}
+          .page{width:100%;}
+          h1{font-size:32px;font-weight:700;margin:0 0 16px;color:#000}
+          h2{font-size:26px;font-weight:700;margin:14px 0;color:#000}
+          h3{font-size:22px;font-weight:700;margin:12px 0;color:#000}
+          p{margin:10px 0}
+          strong{font-weight:800;color:#000}
+          em{font-style:italic}
+          u{text-decoration:underline}
+          s{text-decoration:line-through}
+          ul{margin:8px 0;padding-left:24px;list-style:disc}
+          ol{margin:8px 0;padding-left:24px;list-style:decimal}
+          li{margin:4px 0}
+          blockquote{border-left:4px solid #ddd;padding-left:12px;color:#222;font-style:italic}
+          code{background:#f3f3f3;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:90%;color:#111}
+          a{color:#111;text-decoration:underline}
+          @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+          /* Improve print sharpness */
+          * {-webkit-print-color-adjust:exact; print-color-adjust:exact}
+        </style>
+      </head>
+      <body>
+        <div class="page">
+          <h1>${titleText}</h1>
+          <div>${editorEl.innerHTML}</div>
+        </div>
+        <script>window.onload=()=>{window.print(); setTimeout(()=>window.close(), 300)};<\/script>
+      </body>
+      </html>`
+    w.document.open()
+    w.document.write(html)
+    w.document.close()
+    setShowExport(false)
+  }
 
   return (
     <div className="flex-1 h-screen overflow-y-auto p-3">
       <div className="max-w-3xl mx-auto px-10 py-12 bg-zinc-950/60 border border-zinc-900 rounded-2xl backdrop-blur shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-zinc-500 mb-8">
-          <span>Cortex</span>
-          <ChevronRight className="h-4 w-4" />
           {folder && (
             <>
               <div className="flex items-center gap-1.5">
@@ -200,7 +344,23 @@ export function NoteView({ note, folders, onUpdate, onDelete, searchHighlight }:
               <ChevronRight className="h-4 w-4" />
             </>
           )}
-          <span className="text-zinc-400">{note.title}</span>
+          <span className="text-zinc-400 flex-1 truncate">{note.title}</span>
+          <div className="relative ml-auto">
+            <button
+              onClick={() => setShowExport(!showExport)}
+              className="inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800 relative z-10 pointer-events-auto"
+              title="Export"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </button>
+            {showExport && (
+              <div className="absolute right-0 mt-2 w-40 bg-zinc-900 border border-zinc-800 rounded-md shadow-xl z-20">
+                <button onClick={handleDownloadImage} className="w-full text-left px-3 py-2 text-xs text-white hover:bg-zinc-800">Image (PNG)</button>
+                <button onClick={handleDownloadPDF} className="w-full text-left px-3 py-2 text-xs text-white hover:bg-zinc-800">PDF</button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Title */}

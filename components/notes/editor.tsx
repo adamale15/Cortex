@@ -20,6 +20,12 @@ export function Editor({ content, onChange, placeholder = 'Type @ for commands..
   const [commandQuery, setCommandQuery] = useState('')
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
   const commandStartPos = useRef<number | null>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  // Themed link dialog state
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkText, setLinkText] = useState('')
+  const pendingRangeRef = useRef<{ from: number; to: number } | null>(null)
 
   const editor = useEditor({
     extensions: [
@@ -73,10 +79,21 @@ export function Editor({ content, onChange, placeholder = 'Type @ for commands..
           
           // Calculate menu position
           const coords = editor.view.coordsAtPos(from)
-          setMenuPosition({
-            top: coords.bottom + 8,
-            left: coords.left,
-          })
+          const margin = 12
+          const assumedMenuWidth = 360
+          const wrapperRect = wrapperRef.current?.getBoundingClientRect()
+          if (wrapperRect) {
+            const maxAbsLeft = wrapperRect.right - assumedMenuWidth - margin
+            const minAbsLeft = wrapperRect.left + margin
+            const absLeft = Math.max(minAbsLeft, Math.min(coords.left, maxAbsLeft))
+            const left = absLeft - wrapperRect.left
+            const top = coords.bottom - wrapperRect.top + 8
+            setMenuPosition({ top, left })
+          } else {
+            const maxLeft = Math.max(0, (window.innerWidth || 0) - assumedMenuWidth - margin)
+            const clampedLeft = Math.max(margin, Math.min(coords.left, maxLeft))
+            setMenuPosition({ top: coords.bottom + 8, left: clampedLeft })
+          }
         } else {
           setShowCommandMenu(false)
         }
@@ -139,9 +156,9 @@ export function Editor({ content, onChange, placeholder = 'Type @ for commands..
       case 'setParagraph':
         editor.chain()
           .deleteRange({ from: deleteFrom, to: deleteTo })
-          .insertContent({ type: 'paragraph' })
-          .setParagraph()
+          .unsetAllMarks()
           .focus()
+          .setParagraph()
           .run()
         break
       case 'toggleHeading1':
@@ -195,90 +212,59 @@ export function Editor({ content, onChange, placeholder = 'Type @ for commands..
         break
       
       // Text formatting commands - delete @query, insert zero-width space with mark
-      case 'toggleBold':
-        editor.chain()
+      case 'toggleBold': {
+        const chain = editor.chain()
           .deleteRange({ from: deleteFrom, to: deleteTo })
           .focus()
-          .insertContent({
-            type: 'text',
-            text: ' ',
-            marks: [{ type: 'bold' }],
-          })
-          .run()
+          .setMark('bold')
+        chain.run()
         break
+      }
       
-      case 'toggleItalic':
-        editor.chain()
+      case 'toggleItalic': {
+        const chain = editor.chain()
           .deleteRange({ from: deleteFrom, to: deleteTo })
           .focus()
-          .insertContent({
-            type: 'text',
-            text: ' ',
-            marks: [{ type: 'italic' }],
-          })
-          .run()
+          .setMark('italic')
+        chain.run()
         break
+      }
       
-      case 'toggleUnderline':
-        editor.chain()
+      case 'toggleUnderline': {
+        const chain = editor.chain()
           .deleteRange({ from: deleteFrom, to: deleteTo })
           .focus()
-          .insertContent({
-            type: 'text',
-            text: ' ',
-            marks: [{ type: 'underline' }],
-          })
-          .run()
+          .setMark('underline')
+        chain.run()
         break
+      }
       
-      case 'toggleStrike':
-        editor.chain()
+      case 'toggleStrike': {
+        const chain = editor.chain()
           .deleteRange({ from: deleteFrom, to: deleteTo })
           .focus()
-          .insertContent({
-            type: 'text',
-            text: ' ',
-            marks: [{ type: 'strike' }],
-          })
-          .run()
+          .setMark('strike')
+        chain.run()
         break
+      }
       
-      case 'toggleCode':
-        editor.chain()
+      case 'toggleCode': {
+        const chain = editor.chain()
           .deleteRange({ from: deleteFrom, to: deleteTo })
           .focus()
-          .insertContent({
-            type: 'text',
-            text: ' ',
-            marks: [{ type: 'code' }],
-          })
-          .run()
+          .setMark('code')
+        chain.run()
         break
+      }
       
-      // Link
-      case 'setLink':
-        {
-          const url = window.prompt('Enter URL')
-          if (!url) break
-
-          const linkTextInput = window.prompt('Link text (optional)') || ''
-          const linkText = linkTextInput.trim() || url
-
-          editor.chain()
-            .deleteRange({ from: deleteFrom, to: deleteTo })
-            .focus()
-            .insertContent({
-              type: 'text',
-              text: linkText,
-              marks: [
-                { type: 'link', attrs: { href: url } },
-              ],
-            })
-            // add a trailing space so typing continues outside the link
-            .insertContent({ type: 'text', text: ' ' })
-            .run()
-        }
+      // Link via themed dialog
+      case 'setLink': {
+        pendingRangeRef.current = { from: deleteFrom, to: deleteTo }
+        setLinkUrl('')
+        setLinkText('')
+        setLinkDialogOpen(true)
         break
+      }
       
       // Alignment commands
       case 'alignLeft':
@@ -320,7 +306,7 @@ export function Editor({ content, onChange, placeholder = 'Type @ for commands..
   }
 
   return (
-    <div className="notion-editor-wrapper relative">
+    <div ref={wrapperRef} className="notion-editor-wrapper relative">
       {/* Editor */}
       <EditorContent editor={editor} className="text-white" />
 
@@ -332,6 +318,77 @@ export function Editor({ content, onChange, placeholder = 'Type @ for commands..
           onSelect={handleCommandSelect}
           onClose={handleCloseMenu}
         />
+      )}
+
+      {/* Themed Link Dialog */}
+      {linkDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="p-5 border-b border-zinc-800">
+              <h3 className="text-white text-lg font-semibold">Insert Link</h3>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">URL</label>
+                <input
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-0 focus:border-zinc-600"
+                  placeholder="https://example.com"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const btn = document.getElementById('apply-link-btn') as HTMLButtonElement | null
+                      btn?.click()
+                    }
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">Link text (optional)</label>
+                <input
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-0 focus:border-zinc-600"
+                  placeholder="Visible label (defaults to URL)"
+                  value={linkText}
+                  onChange={(e) => setLinkText(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="p-5 border-t border-zinc-800 flex justify-end gap-2">
+              <button
+                className="px-3 py-2 rounded-lg text-sm bg-transparent border border-zinc-700 text-white hover:bg-zinc-800"
+                onClick={() => setLinkDialogOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                id="apply-link-btn"
+                className="px-3 py-2 rounded-lg text-sm bg-white text-black hover:bg-zinc-200"
+                onClick={() => {
+                  if (!editor) { setLinkDialogOpen(false); return }
+                  const url = linkUrl.trim()
+                  const label = (linkText.trim() || url)
+                  const range = pendingRangeRef.current
+                  pendingRangeRef.current = null
+                  setLinkDialogOpen(false)
+                  if (!url || !range) return
+                  editor.chain()
+                    .deleteRange({ from: range.from, to: range.to })
+                    .focus()
+                    .insertContent({
+                      type: 'text',
+                      text: label,
+                      marks: [ { type: 'link', attrs: { href: url } } ],
+                    })
+                    .insertContent({ type: 'text', text: ' ' })
+                    .run()
+                }}
+              >
+                Insert
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

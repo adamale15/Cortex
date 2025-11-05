@@ -240,7 +240,7 @@ export function CommandMenu({ position, query, onSelect, onClose }: CommandMenuP
     return (
       <div
         ref={menuRef}
-        className="fixed z-50 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl overflow-hidden"
+        className="absolute z-50 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl overflow-hidden"
         style={{ top: position.top, left: position.left, minWidth: '300px' }}
       >
         <div className="p-4 text-center text-zinc-500 text-sm">
@@ -253,7 +253,7 @@ export function CommandMenu({ position, query, onSelect, onClose }: CommandMenuP
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl overflow-hidden max-h-[400px] overflow-y-auto command-menu-enter"
+      className="absolute z-50 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl overflow-hidden max-h-[400px] overflow-y-auto command-menu-enter"
       style={{ top: position.top, left: position.left, minWidth: '320px' }}
     >
       <div className="p-2">

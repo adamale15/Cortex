@@ -16,6 +16,7 @@ export async function getNotes() {
     .from('notes')
     .select('*')
     .eq('user_id', user.id)
+    .order('starred', { ascending: false })
     .order('position', { ascending: true })
 
   if (error) {
@@ -204,5 +205,30 @@ export async function moveNoteToFolder(noteId: string, folderId: string | null) 
 
   revalidatePath('/notes')
   return { success: true }
+}
+
+export async function toggleNoteStar(noteId: string, starred: boolean) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Unauthorized' }
+  }
+
+  const { data, error } = await supabase
+    .from('notes')
+    .update({ starred })
+    .eq('id', noteId)
+    .eq('user_id', user.id)
+    .select('id, starred')
+    .single()
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/notes')
+  return { note: data }
 }
 

@@ -16,13 +16,16 @@ import {
   Trash2,
   Home,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Star
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core'
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, rectIntersection, useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+
+// (moved to top)
 
 interface NotionSidebarProps {
   folders: Folder[]
@@ -42,6 +45,8 @@ interface NotionSidebarProps {
   onMoveNoteDown?: (noteId: string) => void
   onReorderFolders?: (folderIds: string[]) => void
   onReorderNotes?: (noteIds: string[]) => void
+  onToggleStar?: (noteId: string, nextStarred: boolean) => void
+  onMoveNoteToFolder?: (noteId: string, folderId: string | null) => void
 }
 
 export function NotionSidebar({
@@ -62,6 +67,8 @@ export function NotionSidebar({
   onMoveNoteDown,
   onReorderFolders,
   onReorderNotes,
+  onToggleStar,
+  onMoveNoteToFolder,
 }: NotionSidebarProps) {
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -85,6 +92,10 @@ export function NotionSidebar({
 
   const getNotesInFolder = (folderId: string | null) => {
     return notes.filter(note => note.folder_id === folderId)
+  }
+
+  const getStarredNotes = () => {
+    return notes.filter((note: any) => note.starred)
   }
 
   // Helper function to get text content from HTML
@@ -255,18 +266,106 @@ export function NotionSidebar({
         {/* Folders & Notes */}
         {!isCollapsed && !searchQuery && (
           <div className="mt-3 space-y-1">
+            {/* Favourites (virtual folder) */}
+            {getStarredNotes().length > 0 && (
+              <div>
+                <div className="text-xs font-medium text-zinc-500 px-2 py-1.5 flex items-center gap-1">
+                  <Star className="h-3.5 w-3.5 text-yellow-400" />
+                  Favourites
+                </div>
+                <div className="ml-0 space-y-0.5 mt-0.5">
+                  {getStarredNotes().map((note) => (
+                    <div key={`fav-${note.id}`}>
+                      <button
+                        onClick={() => onNoteSelect(note.id)}
+                        onMouseEnter={() => setHoveredNote(note.id)}
+                        onMouseLeave={() => setHoveredNote(null)}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors text-sm group ${
+                          selectedNoteId === note.id
+                            ? 'bg-zinc-800 text-white'
+                            : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                        }`}
+                      >
+                        <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="flex-1 text-left truncate text-xs">{note.title}</span>
+                        <div className="flex items-center gap-1 w-14 justify-end">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onToggleStar?.(note.id, !(note as any).starred)
+                            }}
+                            className={`p-1 rounded ${
+                              (note as any).starred
+                                ? 'text-yellow-400 hover:bg-zinc-700'
+                                : 'text-zinc-500 hover:text-white hover:bg-zinc-700'
+                            }`}
+                            title={(note as any).starred ? 'Unstar' : 'Star'}
+                          >
+                            <Star className="h-3.5 w-3.5" fill={(note as any).starred ? 'currentColor' : 'none'} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onDeleteNote(note.id)
+                            }}
+                            className="p-1 rounded text-red-400 hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="my-2 mx-2 border-t border-zinc-800" />
+              </div>
+            )}
+            {/* Folders header */}
+            <div className="text-xs font-medium text-zinc-500 px-2 py-1.5">Folders</div>
             {/* Folders (Draggable) */}
             <DndContext
               sensors={sensors}
-              collisionDetection={closestCenter}
+              collisionDetection={rectIntersection}
               onDragEnd={(event) => {
                 const { active, over } = event
-                if (!over || active.id === over.id) return
-                const oldIndex = folders.findIndex(f => f.id === active.id)
-                const newIndex = folders.findIndex(f => f.id === over.id)
-                if (oldIndex === -1 || newIndex === -1) return
-                const newOrder = arrayMove(folders.map(f => f.id), oldIndex, newIndex)
-                onReorderFolders?.(newOrder)
+                if (!over) return
+                const activeId = String(active.id)
+                const overId = String(over.id)
+
+                // Move note to folder/uncategorized when dropped over headers
+                if (overId.startsWith('move-folder-')) {
+                  const folderId = overId.replace('move-folder-', '')
+                  onMoveNoteToFolder?.(activeId, folderId)
+                  return
+                }
+                if (overId === 'drop-uncategorized') {
+                  onMoveNoteToFolder?.(activeId, null)
+                  return
+                }
+
+                // Reorder folders
+                const folderIds = folders.map(f => f.id)
+                if (folderIds.includes(activeId) && folderIds.includes(overId)) {
+                  const oldIndex = folders.findIndex(f => f.id === activeId)
+                  const newIndex = folders.findIndex(f => f.id === overId)
+                  if (oldIndex === -1 || newIndex === -1) return
+                  const newOrder = arrayMove(folderIds, oldIndex, newIndex)
+                  onReorderFolders?.(newOrder)
+                  return
+                }
+
+                // Reorder notes within the same folder (including null)
+                const sourceNote = notes.find(n => n.id === activeId)
+                const targetNote = notes.find(n => n.id === overId)
+                if (sourceNote && targetNote && sourceNote.folder_id === targetNote.folder_id) {
+                  const list = getNotesInFolder(sourceNote.folder_id)
+                  const oldIndex = list.findIndex(n => n.id === activeId)
+                  const newIndex = list.findIndex(n => n.id === overId)
+                  if (oldIndex === -1 || newIndex === -1) return
+                  const newOrder = arrayMove(list.map(n => n.id), oldIndex, newIndex)
+                  onReorderNotes?.(newOrder)
+                }
               }}
             >
               <SortableContext items={folders.map(f => f.id)} strategy={verticalListSortingStrategy}>
@@ -276,7 +375,8 @@ export function NotionSidebar({
 
               return (
                 <SortableFolder key={folder.id} id={folder.id}>
-                  {/* Folder Header */}
+                  {/* Folder Header (droppable for moves) */}
+                  <DroppableWrapper id={`move-folder-${folder.id}`}>
                   <div
                     onMouseEnter={() => setHoveredFolder(folder.id)}
                     onMouseLeave={() => setHoveredFolder(null)}
@@ -351,24 +451,11 @@ export function NotionSidebar({
                       </div>
                     )}
                   </div>
+                  </DroppableWrapper>
 
                   {/* Folder Notes */}
                   {!isCollapsed && (
                     <div className="ml-4 space-y-0.5 mt-0.5">
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={(event) => {
-                          const { active, over } = event
-                          if (!over || active.id === over.id) return
-                          const notesList = getNotesInFolder(folder.id)
-                          const oldIndex = notesList.findIndex(n => n.id === active.id)
-                          const newIndex = notesList.findIndex(n => n.id === over.id)
-                          if (oldIndex === -1 || newIndex === -1) return
-                          const newOrder = arrayMove(notesList.map(n => n.id), oldIndex, newIndex)
-                          onReorderNotes?.(newOrder)
-                        }}
-                      >
                         <SortableContext items={folderNotes.map(n => n.id)} strategy={verticalListSortingStrategy}>
                         {folderNotes.map((note) => (
                           <SortableNote key={note.id} id={note.id}>
@@ -384,48 +471,51 @@ export function NotionSidebar({
                             >
                               <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                               <span className="flex-1 text-left truncate text-xs">{note.title}</span>
-                              {hoveredNote === note.id && (
+                              <div className="flex items-center gap-1 w-14 justify-end">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onToggleStar?.(note.id, !(note as any).starred)
+                                  }}
+                                  className={`p-1 rounded ${
+                                    (note as any).starred
+                                      ? 'text-yellow-400 hover:bg-zinc-700'
+                                      : 'text-zinc-500 hover:text-white hover:bg-zinc-700'
+                                  }`}
+                                  title={(note as any).starred ? 'Unstar' : 'Star'}
+                                >
+                                  <Star className="h-3.5 w-3.5" fill={(note as any).starred ? 'currentColor' : 'none'} />
+                                </button>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     onDeleteNote(note.id)
                                   }}
-                                  className="p-1 hover:bg-zinc-700 rounded text-red-400"
+                                  className="p-1 rounded text-red-400 hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
+                                  title="Delete"
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </button>
-                              )}
+                              </div>
                             </button>
                           </SortableNote>
                         ))}
                         </SortableContext>
-                      </DndContext>
                     </div>
                   )}
                 </SortableFolder>
               )
             })}
               </SortableContext>
-            </DndContext>
 
             {/* Notes without folder */}
             {getNotesInFolder(null).length > 0 && (
+              <DroppableWrapper id={'drop-uncategorized'}>
               <div>
-                <div className="text-xs font-medium text-zinc-500 px-2 py-1.5">Uncategorized</div>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={(event) => {
-                    const { active, over } = event
-                    if (!over || active.id === over.id) return
-                    const notesList = getNotesInFolder(null)
-                    const oldIndex = notesList.findIndex(n => n.id === active.id)
-                    const newIndex = notesList.findIndex(n => n.id === over.id)
-                    if (oldIndex === -1 || newIndex === -1) return
-                    const newOrder = arrayMove(notesList.map(n => n.id), oldIndex, newIndex)
-                    onReorderNotes?.(newOrder)
-                  }}
-                >
+                <div className="my-2 mx-2 border-t border-zinc-800" />
+                <DroppableWrapper id={'drop-uncategorized'}>
+                  <div className="text-xs font-medium text-zinc-500 px-2 py-1.5">Uncategorized</div>
+                </DroppableWrapper>
                   <SortableContext items={getNotesInFolder(null).map(n => n.id)} strategy={verticalListSortingStrategy}>
                   {getNotesInFolder(null).map((note) => (
                     <SortableNote key={note.id} id={note.id}>
@@ -441,24 +531,41 @@ export function NotionSidebar({
                       >
                         <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="flex-1 text-left truncate text-xs">{note.title}</span>
-                        {hoveredNote === note.id && (
+                        <div className="flex items-center gap-1 w-14 justify-end">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onToggleStar?.(note.id, !(note as any).starred)
+                            }}
+                            className={`p-1 rounded ${
+                              (note as any).starred
+                                ? 'text-yellow-400 hover:bg-zinc-700'
+                                : 'text-zinc-500 hover:text-white hover:bg-zinc-700'
+                            }`}
+                            title={(note as any).starred ? 'Unstar' : 'Star'}
+                          >
+                            <Star className="h-3.5 w-3.5" fill={(note as any).starred ? 'currentColor' : 'none'} />
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
                               onDeleteNote(note.id)
                             }}
-                            className="p-1 hover:bg-zinc-700 rounded text-red-400"
+                            className="p-1 rounded text-red-400 hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
+                            title="Delete"
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
-                        )}
+                        </div>
                       </button>
                     </SortableNote>
                   ))}
                   </SortableContext>
-                </DndContext>
+                  {/* No visible move targets; drop directly on folder headers */}
               </div>
+              </DroppableWrapper>
             )}
+            </DndContext>
           </div>
         )}
       </div>
@@ -485,7 +592,8 @@ function SortableFolder({ id, children }: { id: string; children: React.ReactNod
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-  }
+    willChange: 'transform',
+  } as React.CSSProperties
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       {children}
@@ -498,9 +606,23 @@ function SortableNote({ id, children }: { id: string; children: React.ReactNode 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-  }
+    willChange: 'transform',
+  } as React.CSSProperties
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  )
+}
+
+function DroppableWrapper({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`pointer-events-auto rounded-md ${isOver ? 'ring-1 ring-zinc-600 bg-zinc-900/60' : ''}`}
+      style={{ paddingTop: 2, paddingBottom: 2 }}
+    >
       {children}
     </div>
   )

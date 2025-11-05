@@ -1,3 +1,21 @@
+@font-face {
+  font-family: 'Elms Sans';
+  src: url('/fonts/elms-sans/ElmsSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Elms Sans';
+  src: url('/fonts/elms-sans/ElmsSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Add more weights/styles as needed */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -71,7 +89,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans font-normal;
   }
 }
 
@@ -146,7 +164,7 @@
 
 .ProseMirror h1 {
   font-size: 2em;
-  font-weight: bold;
+  font-weight: 500;
   margin-top: 0.5em;
   margin-bottom: 0.5em;
   line-height: 1.2;
@@ -154,7 +172,7 @@
 
 .ProseMirror h2 {
   font-size: 1.5em;
-  font-weight: bold;
+  font-weight: 500;
   margin-top: 0.5em;
   margin-bottom: 0.5em;
   line-height: 1.3;
@@ -162,7 +180,7 @@
 
 .ProseMirror h3 {
   font-size: 1.25em;
-  font-weight: bold;
+  font-weight: 500;
   margin-top: 0.5em;
   margin-bottom: 0.5em;
   line-height: 1.4;
@@ -230,6 +248,7 @@
   @apply text-white leading-relaxed;
   font-size: 16px;
   line-height: 1.7;
+  font-weight: 400;
 }
 
 .notion-editor .ProseMirror p {
@@ -237,17 +256,17 @@
 }
 
 .notion-editor .ProseMirror h1 {
-  @apply text-4xl font-bold text-white mt-8 mb-3;
+  @apply text-4xl font-medium text-white mt-8 mb-3;
   line-height: 1.2;
 }
 
 .notion-editor .ProseMirror h2 {
-  @apply text-3xl font-bold text-white mt-6 mb-2;
+  @apply text-3xl font-medium text-white mt-6 mb-2;
   line-height: 1.3;
 }
 
 .notion-editor .ProseMirror h3 {
-  @apply text-2xl font-bold text-white mt-5 mb-2;
+  @apply text-2xl font-medium text-white mt-5 mb-2;
   line-height: 1.4;
 }
 
@@ -272,8 +291,10 @@
   @apply text-blue-400 underline hover:text-blue-300 transition-colors;
 }
 
-.notion-editor .ProseMirror strong {
-  @apply font-bold text-white;
+.notion-editor .ProseMirror strong,
+.notion-editor .ProseMirror b {
+  @apply text-white;
+  font-weight: 800 !important;
 }
 
 .notion-editor .ProseMirror em {
@@ -326,7 +347,16 @@
 
 /* Smooth transitions for editor */
 .ProseMirror {
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Remove any focus outline/ring flash on editor click */
+.notion-editor-wrapper:focus,
+.notion-editor-wrapper:focus-within,
+.notion-editor .ProseMirror:focus,
+.notion-editor .ProseMirror:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Highlight @ symbol */

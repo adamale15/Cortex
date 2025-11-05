@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { Space_Grotesk } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const spaceGrotesk = Space_Grotesk({ 
+const inter = Inter({ 
   subsets: ["latin"],
-  weight: ["600"],
-  variable: "--font-space-grotesk",
+  weight: ["400", "600", "700"],
+  variable: "--font-inter",
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -24,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${spaceGrotesk.variable} ${spaceGrotesk.className}`}>
+      <body className={`${inter.variable} ${inter.className} font-normal`}>
         <Providers>
           {children}
         </Providers>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Note, Folder } from '@/types'
-import { getNotes, createNote, updateNote, deleteNote, reorderNotes } from '@/app/actions/notes'
+import { getNotes, createNote, updateNote, deleteNote, reorderNotes, toggleNoteStar, moveNoteToFolder } from '@/app/actions/notes'
 import { getFolders, createFolder, updateFolder, deleteFolder, reorderFolders } from '@/app/actions/folders'
 import { NotionSidebar } from '@/components/notes/notion-sidebar'
 import { NoteView } from '@/components/notes/note-view'
@@ -246,6 +246,19 @@ export default function NotesPage() {
     await loadNotes()
   }
 
+  const handleToggleStar = async (noteId: string, nextStarred: boolean) => {
+    // optimistic UI
+    setNotes(prev => prev.map(n => n.id === noteId ? ({ ...n, starred: nextStarred } as any) : n))
+    const result = await toggleNoteStar(noteId, nextStarred)
+    if (result.error) {
+      // revert on error
+      setNotes(prev => prev.map(n => n.id === noteId ? ({ ...n, starred: !nextStarred } as any) : n))
+    } else {
+      // reload to respect ordering (starred first)
+      await loadNotes()
+    }
+  }
+
   const handleDeleteFolder = (folderId: string) => {
     setDeleteFolderConfirm({ isOpen: true, folderId })
   }
@@ -264,6 +277,11 @@ export default function NotesPage() {
 
   const handleEditNoteFromSidebar = (note: Note) => {
     setSelectedNoteId(note.id)
+  }
+
+  const handleMoveNoteToFolder = async (noteId: string, folderId: string | null) => {
+    await moveNoteToFolder(noteId, folderId)
+    await loadNotes()
   }
 
   if (loading) {
@@ -315,6 +333,8 @@ export default function NotesPage() {
           await reorderNotes(ids)
           await loadNotes()
         }}
+        onToggleStar={handleToggleStar}
+        onMoveNoteToFolder={handleMoveNoteToFolder}
       />
 
       {/* Main Content */}
