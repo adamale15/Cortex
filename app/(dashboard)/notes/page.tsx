@@ -499,16 +499,15 @@ export default function NotesPage() {
             <div className="border-t border-zinc-800 p-6 flex gap-3 justify-end">
               <Button
                 onClick={() => setIsFolderModalOpen(false)}
-                variant="outline"
                 disabled={isSaving}
-                className="bg-transparent border-zinc-700 text-white hover:bg-zinc-800"
+                className="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 [&]:text-white [&_*]:text-white"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSaveFolder}
                 disabled={isSaving}
-                className="bg-white hover:bg-zinc-200 text-black"
+                className="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 [&]:text-white [&_*]:text-white"
               >
                 {isSaving ? 'Saving...' : editingFolder ? 'Update Folder' : 'Create Folder'}
               </Button>

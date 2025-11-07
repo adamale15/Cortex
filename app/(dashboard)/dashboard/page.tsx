@@ -22,7 +22,7 @@ export default async function DashboardPage() {
       
       {/* Header */}
       <header className="bg-transparent relative z-10">
-        <div className="container mx-auto px-4 py-8">
+        <div className="w-full max-w-[95%] mx-auto px-4 md:px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-semibold text-white">Dashboard</h1>
@@ -33,7 +33,6 @@ export default async function DashboardPage() {
             <form action={signOut}>
               <Button
                 type="submit"
-                className="border-zinc-800 text-white hover:bg-zinc-900"
               >
                 Sign Out
               </Button>
@@ -43,9 +42,9 @@ export default async function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 container mx-auto px-4 py-8">
+      <main className="relative z-10 w-full max-w-[95%] mx-auto px-4 md:px-6 py-8">
         {/* Welcome Card only */}
-        <div className="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-8 backdrop-blur">
+        <div className="max-w-4xl mx-auto bg-zinc-950/60 border border-zinc-800 rounded-2xl p-8 backdrop-blur">
           <div className="flex items-start gap-4">
             <div className="text-5xl">🎉</div>
             <div className="flex-1">
@@ -100,13 +99,13 @@ export default async function DashboardPage() {
               
               <div className="flex gap-3">
                 <Link href="/notes">
-                  <Button className="bg-white text-black hover:bg-gray-100">
+                  <Button>
                     <FileText className="h-4 w-4 mr-2" />
                     Create Note
                   </Button>
                 </Link>
                 <Link href="/files">
-                  <Button className="border-zinc-800 text-white hover:bg-zinc-900">
+                  <Button>
                     <Upload className="h-4 w-4 mr-2" />
                     Upload File
                   </Button>

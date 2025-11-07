@@ -54,32 +54,32 @@
   }
 
   .dark {
-    --background: 0 0% 3.9%;
+    --background: 0 0% 9%;
     --foreground: 0 0% 98%;
 
-    --card: 0 0% 3.9%;
+    --card: 0 0% 11%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 3.9%;
+    --popover: 0 0% 11%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 0 0% 98%;
     --primary-foreground: 0 0% 9%;
 
-    --secondary: 0 0% 14.9%;
+    --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 0 0% 14.9%;
+    --accent: 0 0% 15%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
     --ring: 0 0% 83.1%;
   }
 }
@@ -90,6 +90,13 @@
   }
   body {
     @apply bg-background text-foreground font-sans font-normal;
+  }
+  /* Dark mode background with subtle dot pattern */
+  .dark body {
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-position: 0 0, 12px 12px;
   }
 }
 
@@ -405,3 +412,46 @@ mark.sidebar-search-highlight {
     box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.5);
   }
 }
+
+/* Button border gradient animation */
+@property --gradient-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rotate-gradient {
+  0% {
+    --gradient-angle: 0deg;
+  }
+  100% {
+    --gradient-angle: 360deg;
+  }
+}
+
+/* Button with animated border gradient on hover */
+button.group {
+  --c: #18181b;
+  --p: 10%;
+  border: 2px solid transparent;
+  background: linear-gradient(var(--c), var(--c)) padding-box;
+  background-color: var(--c);
+}
+
+button.group:hover {
+  background: 
+    linear-gradient(var(--c), var(--c)) padding-box,
+    conic-gradient(
+      from var(--gradient-angle, 0deg),
+      transparent,
+      #ffffff var(--p),
+      transparent calc(var(--p) * 2)
+    ) border-box;
+  animation: rotate-gradient 2s linear infinite;
+}
+
+button.group.bg-zinc-900,
+a.group.bg-zinc-900 {
+  --c: #18181b;
+}
+

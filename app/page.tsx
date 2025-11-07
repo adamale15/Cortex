@@ -33,19 +33,19 @@ export default async function Home() {
             {user ? (
               <>
                 <Link href="/dashboard">
-                  <Button size="lg" className="px-8 bg-white text-black hover:bg-zinc-200">Go to Dashboard</Button>
+                  <Button size="lg" className="px-8 rounded-full bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white">Go to Dashboard</Button>
                 </Link>
                 <form action={signOut}>
-                  <Button type="submit" size="lg" className="px-8 bg-zinc-900 text-white border border-zinc-800 hover:bg-zinc-800">Sign Out</Button>
+                  <Button type="submit" size="lg" className="px-8 rounded-full bg-zinc-900 text-white border border-zinc-800 hover:bg-zinc-800">Sign Out</Button>
                 </form>
               </>
             ) : (
               <>
                 <Link href="/signup">
-                  <Button size="lg" className="px-8 bg-white text-black hover:bg-zinc-200">Get Started</Button>
+                  <Button size="lg" className="px-8 rounded-full bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white">Get Started</Button>
                 </Link>
                 <Link href="/login">
-                  <Button size="lg" variant="outline" className="px-8 bg-zinc-900 text-white border border-zinc-800 hover:bg-zinc-800">Sign In</Button>
+                  <Button size="lg" variant="outline" className="px-8 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700">Sign In</Button>
                 </Link>
               </>
             )}

@@ -29,18 +29,17 @@ export function EmptyState({ hasNotes, onNewNote, onNewFolder }: EmptyStateProps
         <div className="flex items-center justify-center gap-3">
           <Button
             onClick={onNewNote}
-            className="bg-white hover:bg-zinc-200 text-black"
+            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400"
           >
-            <FileText className="h-4 w-4 mr-2" />
-            New Note
+            <FileText className="h-4 w-4 mr-2 text-zinc-400" />
+            <span className="text-white">New Note</span>
           </Button>
           <Button
             onClick={onNewFolder}
-            variant="outline"
-            className="bg-transparent border-zinc-700 text-white hover:bg-zinc-900"
+            className="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 [&]:text-white [&_*]:text-white"
           >
-            <FolderPlus className="h-4 w-4 mr-2" />
-            New Folder
+            <FolderPlus className="h-4 w-4 mr-2 text-white" />
+            <span className="text-white">New Folder</span>
           </Button>
         </div>
       </div>

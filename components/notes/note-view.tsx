@@ -348,7 +348,7 @@ export function NoteView({ note, folders, onUpdate, onDelete, searchHighlight }:
           <div className="relative ml-auto">
             <button
               onClick={() => setShowExport(!showExport)}
-              className="inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800 relative z-10 pointer-events-auto"
+              className="inline-flex rounded-full items-center gap-2 px-2 py-1 rounded-md text-xs bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800 relative z-10 pointer-events-auto"
               title="Export"
             >
               <Download className="h-3.5 w-3.5" />
@@ -422,7 +422,7 @@ export function NoteView({ note, folders, onUpdate, onDelete, searchHighlight }:
             size="sm"
             variant="ghost"
             onClick={() => onDelete(note.id)}
-            className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
+            className="text-zinc-500 rounded-full hover:text-red-400 hover:bg-red-500/10"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Delete

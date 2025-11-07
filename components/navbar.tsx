@@ -17,9 +17,10 @@ export function Navbar() {
   const pathname = usePathname()
 
   return (
-    <nav className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+    <nav className="sticky top-0 z-50 py-4 px-4 md:px-6">
+      <div className="w-full max-w-[95%] mx-auto">
+        <div className="bg-zinc-900/60 backdrop-blur-sm border border-zinc-800 rounded-2xl px-4 md:px-6">
+          <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
@@ -63,30 +64,31 @@ export function Navbar() {
               <LayoutDashboard className="h-6 w-6" />
             </Link>
           </div>
-        </div>
+          </div>
 
-        {/* Mobile Navigation */}
-        <div className="md:hidden pb-3 flex gap-2 overflow-x-auto">
-          {navigation.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href
-            
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors',
-                  isActive
-                    ? 'bg-zinc-800 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-zinc-800/50'
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {item.name}
-              </Link>
-            )
-          })}
+          {/* Mobile Navigation */}
+          <div className="md:hidden pb-3 flex gap-2 overflow-x-auto">
+            {navigation.map((item) => {
+              const Icon = item.icon
+              const isActive = pathname === item.href
+              
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors',
+                    isActive
+                      ? 'bg-zinc-800 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-zinc-800/50'
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {item.name}
+                </Link>
+              )
+            })}
+          </div>
         </div>
       </div>
     </nav>
