@@ -14,7 +14,7 @@ function SubmitButton() {
   return (
     <Button 
       type="submit" 
-      className="w-full h-11 bg-white text-black hover:bg-gray-100 font-medium transition-colors" 
+      className="w-full h-11 bg-zinc-900 text-white border border-zinc-800 hover:bg-zinc-800 font-medium transition-colors" 
       disabled={pending}
     >
       {pending ? 'Sending...' : 'Send Reset Link'}
@@ -61,7 +61,7 @@ export default function ForgotPasswordPage() {
                 </p>
               </div>
               <Link href="/login">
-                <Button variant="outline" className="w-full border-zinc-800 text-white hover:bg-zinc-800">
+                <Button className="w-full bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800">
                   Back to Login
                 </Button>
               </Link>

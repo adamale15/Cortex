@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { AIPanel } from '@/components/ai/ai-panel'
 
 export default async function DashboardLayout({
   children,
@@ -14,8 +15,9 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
       {children}
+      <AIPanel />
     </div>
   )
 }

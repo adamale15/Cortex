@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label'
 import { X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient as createBrowserSupabase } from '@/lib/supabase/client'
+import { ActivateAIButton } from '@/components/ai/activate-ai-button'
+import { AIWorkspaceShift } from '@/components/ai/ai-workspace-shift'
 
 export default function NotesPage() {
   const router = useRouter()
@@ -298,245 +300,281 @@ export default function NotesPage() {
   const selectedNote = notes.find(n => n.id === selectedNoteId)
 
   return (
-    <div className="relative flex h-screen bg-black overflow-hidden">
-      {/* Soft background glow like homepage */}
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute left-1/2 top-12 h-96 w-96 -translate-x-1/2 rounded-[28px] bg-gradient-to-br from-indigo-800/40 via-zinc-900 to-sky-800/30 blur-3xl opacity-70" />
-      </div>
-      {/* Sidebar */}
-      <NotionSidebar
-        folders={folders}
-        notes={notes}
-        selectedNoteId={selectedNoteId}
-        onNoteSelect={handleNoteSelect}
-        onNewNote={handleNewNote}
-        onNewFolder={handleNewFolder}
-        onEditFolder={handleEditFolder}
-        onDeleteFolder={handleDeleteFolder}
-        onEditNote={handleEditNoteFromSidebar}
-        onDeleteNote={handleDeleteNote}
-        onHomeClick={handleHomeClick}
-        onMoveFolderUp={(id) => moveFolder(id, 'up')}
-        onMoveFolderDown={(id) => moveFolder(id, 'down')}
-        onMoveNoteUp={(id) => moveNote(id, 'up')}
-        onMoveNoteDown={(id) => moveNote(id, 'down')}
-        onReorderFolders={async (ids) => {
-          // optimistic UI
-          const reordered = ids.map(id => folders.find(f => f.id === id)!).filter(Boolean)
-          setFolders(reordered)
-          await reorderFolders(ids)
-          await loadFolders()
-        }}
-        onReorderNotes={async (ids) => {
-          const reordered = ids.map(id => notes.find(n => n.id === id)!).filter(Boolean)
-          setNotes(reordered)
-          await reorderNotes(ids)
-          await loadNotes()
-        }}
-        onToggleStar={handleToggleStar}
-        onMoveNoteToFolder={handleMoveNoteToFolder}
-      />
-
-      {/* Main Content */}
-      {selectedNote ? (
-        <NoteView
-          key={`${selectedNote.id}-${searchHighlight || ''}`}
-          note={selectedNote}
+    <AIWorkspaceShift>
+      <div className="relative flex h-screen bg-black overflow-hidden">
+        {/* Soft background glow like homepage */}
+        <div className="pointer-events-none absolute inset-0 z-0">
+          <div className="absolute left-1/2 top-12 h-96 w-96 -translate-x-1/2 rounded-[28px] bg-gradient-to-br from-indigo-800/40 via-zinc-900 to-sky-800/30 blur-3xl opacity-70" />
+        </div>
+        {/* Sidebar */}
+        <NotionSidebar
           folders={folders}
-          onUpdate={handleUpdateNote}
-          onDelete={handleDeleteNote}
-          searchHighlight={searchHighlight}
-        />
-      ) : (
-        <EmptyState
-          hasNotes={notes.length > 0}
-          onNewNote={() => handleNewNote()}
+          notes={notes}
+          selectedNoteId={selectedNoteId}
+          onNoteSelect={handleNoteSelect}
+          onNewNote={handleNewNote}
           onNewFolder={handleNewFolder}
+          onEditFolder={handleEditFolder}
+          onDeleteFolder={handleDeleteFolder}
+          onEditNote={handleEditNoteFromSidebar}
+          onDeleteNote={handleDeleteNote}
+          onHomeClick={handleHomeClick}
+          onMoveFolderUp={(id) => moveFolder(id, 'up')}
+          onMoveFolderDown={(id) => moveFolder(id, 'down')}
+          onMoveNoteUp={(id) => moveNote(id, 'up')}
+          onMoveNoteDown={(id) => moveNote(id, 'down')}
+          onReorderFolders={async (ids) => {
+            // optimistic UI
+            const reordered = ids.map(id => folders.find(f => f.id === id)!).filter(Boolean)
+            setFolders(reordered)
+            await reorderFolders(ids)
+            await loadFolders()
+          }}
+          onReorderNotes={async (ids) => {
+            const reordered = ids.map(id => notes.find(n => n.id === id)!).filter(Boolean)
+            setNotes(reordered)
+            await reorderNotes(ids)
+            await loadNotes()
+          }}
+          onToggleStar={handleToggleStar}
+          onMoveNoteToFolder={handleMoveNoteToFolder}
         />
-      )}
 
-      {/* New Note Modal */}
-      {isNoteModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 rounded-2xl max-w-md w-full border border-zinc-800">
-            <div className="border-b border-zinc-800 p-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">Create New Note</h2>
-              <button
-                onClick={() => setIsNoteModalOpen(false)}
-                className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-white"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+        {/* Main Content */}
+        {selectedNote ? (
+          <NoteView
+            key={`${selectedNote.id}-${searchHighlight || ''}`}
+            note={selectedNote}
+            folders={folders}
+            onUpdate={handleUpdateNote}
+            onDelete={handleDeleteNote}
+            searchHighlight={searchHighlight}
+          />
+        ) : (
+          <EmptyState
+            hasNotes={notes.length > 0}
+            onNewNote={() => handleNewNote()}
+            onNewFolder={handleNewFolder}
+          />
+        )}
 
-            <div className="p-6 space-y-6">
-              {error && (
-                <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
-                  {error}
+        {/* New Note Modal */}
+        {isNoteModalOpen && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-zinc-900 rounded-2xl max-w-md w-full border border-zinc-800">
+              <div className="border-b border-zinc-800 p-6 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white">Create New Note</h2>
+                <button
+                  onClick={() => setIsNoteModalOpen(false)}
+                  className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-white"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
+                    {error}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="note-title" className="text-white">
+                    Title
+                  </Label>
+                  <Input
+                    id="note-title"
+                    value={noteFormData.title}
+                    onChange={(e) => setNoteFormData({ title: e.target.value })}
+                    placeholder="Enter note title..."
+                    className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleCreateNote()
+                      }
+                    }}
+                    autoFocus
+                  />
                 </div>
-              )}
+              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="note-title" className="text-white">Title</Label>
-                <Input
-                  id="note-title"
-                  value={noteFormData.title}
-                  onChange={(e) => setNoteFormData({ title: e.target.value })}
-                  placeholder="Enter note title..."
-                  className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCreateNote()
+              <div className="border-t border-zinc-800 p-6 flex gap-3 justify-end">
+                <Button
+                  onClick={() => setIsNoteModalOpen(false)}
+                  disabled={isSaving}
+                  className="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateNote}
+                  disabled={isSaving}
+                  className="bg-zinc-700 border border-zinc-600 hover:bg-zinc-600 text-white"
+                >
+                  {isSaving ? 'Creating...' : 'Create Note'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Folder Modal */}
+        {isFolderModalOpen && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-zinc-900 rounded-2xl max-w-md w-full border border-zinc-800">
+              <div className="border-b border-zinc-800 p-6 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white">
+                  {editingFolder ? 'Edit Folder' : 'Create New Folder'}
+                </h2>
+                <button
+                  onClick={() => setIsFolderModalOpen(false)}
+                  className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-white"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
+                    {error}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="folder-name" className="text-white">
+                    Folder Name
+                  </Label>
+                  <Input
+                    id="folder-name"
+                    value={folderFormData.name}
+                    onChange={(e) =>
+                      setFolderFormData({ ...folderFormData, name: e.target.value })
                     }
-                  }}
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            <div className="border-t border-zinc-800 p-6 flex gap-3 justify-end">
-              <Button
-                onClick={() => setIsNoteModalOpen(false)}
-                variant="outline"
-                disabled={isSaving}
-                className="bg-transparent border-zinc-700 text-white hover:bg-zinc-800"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateNote}
-                disabled={isSaving}
-                className="bg-white hover:bg-zinc-200 text-black"
-              >
-                {isSaving ? 'Creating...' : 'Create Note'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Folder Modal */}
-      {isFolderModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 rounded-2xl max-w-md w-full border border-zinc-800">
-            <div className="border-b border-zinc-800 p-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">
-                {editingFolder ? 'Edit Folder' : 'Create New Folder'}
-              </h2>
-              <button
-                onClick={() => setIsFolderModalOpen(false)}
-                className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-white"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {error && (
-                <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
-                  {error}
+                    placeholder="Enter folder name..."
+                    className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                    autoFocus
+                  />
                 </div>
-              )}
 
-              <div className="space-y-2">
-                <Label htmlFor="folder-name" className="text-white">Folder Name</Label>
-                <Input
-                  id="folder-name"
-                  value={folderFormData.name}
-                  onChange={(e) => setFolderFormData({ ...folderFormData, name: e.target.value })}
-                  placeholder="Enter folder name..."
-                  className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
-                  autoFocus
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="folder-emoji" className="text-white">Icon (Optional)</Label>
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 bg-zinc-800 border border-zinc-700 rounded-lg flex items-center justify-center overflow-hidden">
-                    {folderFormData.logoFile ? (
-                      <img src={URL.createObjectURL(folderFormData.logoFile)} alt="preview" className="w-full h-full object-cover" />
-                    ) : editingFolder?.logo_url ? (
-                      <img src={editingFolder.logo_url} alt="logo" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-3xl">{folderFormData.emoji || '📁'}</span>
-                    )}
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <Input
-                      id="folder-emoji"
-                      value={folderFormData.emoji}
-                      onChange={(e) => setFolderFormData({ ...folderFormData, emoji: e.target.value })}
-                      placeholder="Paste an emoji (optional)"
-                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
-                      maxLength={2}
-                    />
-                    <input
-                      id="folder-logo"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setFolderFormData({ ...folderFormData, logoFile: e.target.files?.[0] || null, clearLogo: false })}
-                      className="text-xs text-zinc-400 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-zinc-800 file:text-white hover:file:bg-zinc-700"
-                    />
-                    {(editingFolder?.logo_url || folderFormData.logoFile) && (
-                      <label className="flex items-center gap-2 text-xs text-zinc-400">
-                        <input
-                          type="checkbox"
-                          checked={folderFormData.clearLogo}
-                          onChange={(e) => setFolderFormData({ ...folderFormData, clearLogo: e.target.checked, logoFile: e.target.checked ? null : folderFormData.logoFile })}
+                <div className="space-y-2">
+                  <Label htmlFor="folder-emoji" className="text-white">
+                    Icon (Optional)
+                  </Label>
+                  <div className="flex items-start gap-4">
+                    <div className="w-16 h-16 bg-zinc-800 border border-zinc-700 rounded-lg flex items-center justify-center overflow-hidden">
+                      {folderFormData.logoFile ? (
+                        <img
+                          src={URL.createObjectURL(folderFormData.logoFile)}
+                          alt="preview"
+                          className="w-full h-full object-cover"
                         />
-                        Remove logo image
-                      </label>
-                    )}
+                      ) : editingFolder?.logo_url ? (
+                        <img
+                          src={editingFolder.logo_url}
+                          alt="logo"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-3xl">{folderFormData.emoji || '📁'}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        id="folder-emoji"
+                        value={folderFormData.emoji}
+                        onChange={(e) =>
+                          setFolderFormData({ ...folderFormData, emoji: e.target.value })
+                        }
+                        placeholder="Paste an emoji (optional)"
+                        className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                        maxLength={2}
+                      />
+                      <input
+                        id="folder-logo"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          setFolderFormData({
+                            ...folderFormData,
+                            logoFile: e.target.files?.[0] || null,
+                            clearLogo: false,
+                          })
+                        }
+                        className="text-xs text-zinc-400 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-zinc-800 file:text-white hover:file:bg-zinc-700"
+                      />
+                      {(editingFolder?.logo_url || folderFormData.logoFile) && (
+                        <label className="flex items-center gap-2 text-xs text-zinc-400">
+                          <input
+                            type="checkbox"
+                            checked={folderFormData.clearLogo}
+                            onChange={(e) =>
+                              setFolderFormData({
+                                ...folderFormData,
+                                clearLogo: e.target.checked,
+                                logoFile: e.target.checked ? null : folderFormData.logoFile,
+                              })
+                            }
+                          />
+                          Remove logo image
+                        </label>
+                      )}
+                    </div>
                   </div>
+                  <p className="text-xs text-zinc-500">
+                    Upload an image or use an emoji. Uploaded image takes priority.
+                  </p>
                 </div>
-                <p className="text-xs text-zinc-500">Upload an image or use an emoji. Uploaded image takes priority.</p>
+
+                {/* Color removed as requested */}
               </div>
 
-              {/* Color removed as requested */}
-            </div>
-
-            <div className="border-t border-zinc-800 p-6 flex gap-3 justify-end">
-              <Button
-                onClick={() => setIsFolderModalOpen(false)}
-                disabled={isSaving}
-                className="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 [&]:text-white [&_*]:text-white"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveFolder}
-                disabled={isSaving}
-                className="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 [&]:text-white [&_*]:text-white"
-              >
-                {isSaving ? 'Saving...' : editingFolder ? 'Update Folder' : 'Create Folder'}
-              </Button>
+              <div className="border-t border-zinc-800 p-6 flex gap-3 justify-end">
+                <Button
+                  onClick={() => setIsFolderModalOpen(false)}
+                  disabled={isSaving}
+                  className="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveFolder}
+                  disabled={isSaving}
+                  className="bg-zinc-700 border border-zinc-600 hover:bg-zinc-600 text-white"
+                >
+                  {isSaving ? 'Saving...' : editingFolder ? 'Update Folder' : 'Create Folder'}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Delete Note Confirmation */}
-      <ConfirmDialog
-        isOpen={deleteConfirm.isOpen}
-        title="Delete Note"
-        message="Are you sure you want to delete this note? This action cannot be undone."
-        onConfirm={confirmDeleteNote}
-        onCancel={() => setDeleteConfirm({ isOpen: false, noteId: null })}
-        confirmText="Delete"
-        cancelText="Cancel"
-      />
+        {/* Delete Note Confirmation */}
+        <ConfirmDialog
+          isOpen={deleteConfirm.isOpen}
+          title="Delete Note"
+          message="Are you sure you want to delete this note? This action cannot be undone."
+          onConfirm={confirmDeleteNote}
+          onCancel={() => setDeleteConfirm({ isOpen: false, noteId: null })}
+          confirmText="Delete"
+          cancelText="Cancel"
+        />
 
-      {/* Delete Folder Confirmation */}
-      <ConfirmDialog
-        isOpen={deleteFolderConfirm.isOpen}
-        title="Delete Folder"
-        message="Are you sure you want to delete this folder? Notes in this folder will be moved to 'Uncategorized'."
-        onConfirm={confirmDeleteFolder}
-        onCancel={() => setDeleteFolderConfirm({ isOpen: false, folderId: null })}
-        confirmText="Delete"
-        cancelText="Cancel"
-      />
-    </div>
+        {/* Delete Folder Confirmation */}
+        <ConfirmDialog
+          isOpen={deleteFolderConfirm.isOpen}
+          title="Delete Folder"
+          message="Are you sure you want to delete this folder? Notes in this folder will be moved to 'Uncategorized'."
+          onConfirm={confirmDeleteFolder}
+          onCancel={() => setDeleteFolderConfirm({ isOpen: false, folderId: null })}
+          confirmText="Delete"
+          cancelText="Cancel"
+        />
+      </div>
+      <div className="fixed bottom-6 right-6 z-[70]">
+        <ActivateAIButton />
+      </div>
+    </AIWorkspaceShift>
   )
 }

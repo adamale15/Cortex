@@ -422,7 +422,7 @@ export function NoteView({ note, folders, onUpdate, onDelete, searchHighlight }:
             size="sm"
             variant="ghost"
             onClick={() => onDelete(note.id)}
-            className="text-zinc-500 rounded-full hover:text-red-400 hover:bg-red-500/10"
+            className="text-white rounded-full hover:text-red-400 hover:bg-red-500/10"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Delete

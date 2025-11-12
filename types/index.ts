@@ -77,6 +77,38 @@ export interface ChatMessage {
   created_at: string
 }
 
+export interface AIChat {
+  id: string
+  user_id: string
+  title: string
+  created_at: string
+  updated_at: string
+}
+
+export interface AIMessage {
+  id: string
+  chat_id: string
+  user_id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  context_items: Array<{
+    id: string
+    type: 'note' | 'folder' | 'file'
+    title?: string
+  }>
+  metadata?: Record<string, unknown>
+  created_at: string
+}
+
+export interface AIChatContext {
+  id: string
+  chat_id: string
+  user_id: string
+  item_type: 'note' | 'folder' | 'file'
+  item_id: string
+  created_at: string
+}
+
 // API Response Types
 export interface ApiResponse<T> {
   data?: T

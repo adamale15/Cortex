@@ -433,9 +433,9 @@ mark.sidebar-search-highlight {
 button.group {
   --c: #18181b;
   --p: 10%;
-  border: 2px solid transparent;
-  background: linear-gradient(var(--c), var(--c)) padding-box;
-  background-color: var(--c);
+  border: 2px solid transparent !important;
+  background: linear-gradient(var(--c), var(--c)) padding-box !important;
+  background-color: var(--c) !important;
 }
 
 button.group:hover {
@@ -446,7 +446,7 @@ button.group:hover {
       transparent,
       #ffffff var(--p),
       transparent calc(var(--p) * 2)
-    ) border-box;
+    ) border-box !important;
   animation: rotate-gradient 2s linear infinite;
 }
 
