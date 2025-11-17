@@ -1,3 +1,5 @@
+const buildId = Date.now().toString()
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -8,7 +10,10 @@ const nextConfig = {
       },
     ],
   },
-};
+  env: {
+    NEXT_PUBLIC_BUILD_ID: buildId,
+  },
+}
 
-export default nextConfig;
+export default nextConfig
 

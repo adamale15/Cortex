@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -11,13 +12,26 @@ export default async function Home() {
   // Show minimal homepage even if logged in; no redirect
 
   return (
-    <main className="relative min-h-screen bg-black">
+    <main className="relative min-h-screen overflow-hidden bg-black">
+      <div className="absolute inset-0">
+        <Image
+          src="/background.png"
+          alt=""
+          fill
+          priority
+          quality={100}
+          sizes="100vw"
+          className="object-cover"
+        />
+      </div>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" aria-hidden="true" />
+
       {/* soft background glow + decorative svgs */}
       <div className="pointer-events-none absolute inset-0 z-0">
         <div className="absolute left-1/2 top-24 h-96 w-96 -translate-x-1/2 rounded-[28px] bg-gradient-to-br from-indigo-800/40 via-zinc-900 to-sky-800/30 blur-3xl opacity-70" />
       </div>
 
-      <div className="relative z-10 container mx-auto px-6 md:px-8 py-24 md:py-32">
+      <div className="relative z-10 container mx-auto px-6 md:px-8 py-24 md:py-32 text-white">
         <div className="mx-auto max-w-5xl text-center">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 mb-8">
             <span className="text-white font-semibold">C</span>
