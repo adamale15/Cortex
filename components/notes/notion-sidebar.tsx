@@ -289,20 +289,29 @@ export function NotionSidebar({
                         <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="flex-1 text-left truncate text-xs">{note.title}</span>
                         <div className="flex items-center gap-1 w-14 justify-end">
-                          <button
+                          <div
                             onClick={(e) => {
                               e.stopPropagation()
                               onToggleStar?.(note.id, !(note as any).starred)
                             }}
-                            className={`p-1 rounded ${
+                            className={`p-1 rounded cursor-pointer ${
                               (note as any).starred
                                 ? 'text-yellow-400 hover:bg-zinc-700'
                                 : 'text-zinc-500 hover:text-white hover:bg-zinc-700'
                             }`}
                             title={(note as any).starred ? 'Unstar' : 'Star'}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onToggleStar?.(note.id, !(note as any).starred)
+                              }
+                            }}
                           >
                             <Star className="h-3.5 w-3.5" fill={(note as any).starred ? 'currentColor' : 'none'} />
-                          </button>
+                          </div>
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
@@ -472,20 +481,33 @@ export function NotionSidebar({
                               <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                               <span className="flex-1 text-left truncate text-xs">{note.title}</span>
                               <div className="flex items-center gap-1 w-14 justify-end">
-                                <button
+                                <div
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     onToggleStar?.(note.id, !(note as any).starred)
                                   }}
-                                  className={`p-1 rounded ${
+                                  className={`p-1 rounded cursor-pointer ${
                                     (note as any).starred
                                       ? 'text-yellow-400 hover:bg-zinc-700'
                                       : 'text-zinc-500 hover:text-white hover:bg-zinc-700'
                                   }`}
                                   title={(note as any).starred ? 'Unstar' : 'Star'}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      onToggleStar?.(note.id, !(note as any).starred)
+                                    }
+                                  }}
                                 >
-                                  <Star className="h-3.5 w-3.5" fill={(note as any).starred ? 'currentColor' : 'none'} />
-                                </button>
+                                  {(note as any).starred ? (
+                                    <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                                  ) : (
+                                    <Star className="w-3 h-3" />
+                                  )}
+                                </div>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
@@ -532,20 +554,29 @@ export function NotionSidebar({
                         <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="flex-1 text-left truncate text-xs">{note.title}</span>
                         <div className="flex items-center gap-1 w-14 justify-end">
-                          <button
+                          <div
                             onClick={(e) => {
                               e.stopPropagation()
                               onToggleStar?.(note.id, !(note as any).starred)
                             }}
-                            className={`p-1 rounded ${
+                            className={`p-1 rounded cursor-pointer ${
                               (note as any).starred
                                 ? 'text-yellow-400 hover:bg-zinc-700'
                                 : 'text-zinc-500 hover:text-white hover:bg-zinc-700'
                             }`}
                             title={(note as any).starred ? 'Unstar' : 'Star'}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onToggleStar?.(note.id, !(note as any).starred)
+                              }
+                            }}
                           >
                             <Star className="h-3.5 w-3.5" fill={(note as any).starred ? 'currentColor' : 'none'} />
-                          </button>
+                          </div>
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
